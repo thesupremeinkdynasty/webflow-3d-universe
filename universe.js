@@ -1,4 +1,6 @@
-// ЗМІСТ ФАЙЛУ: universe.js (Повна, готова версія з усіма покращеннями)
+// universe.js - Повна версія коду після КРОКУ 6.1 (Усунення "троїння" на Пакті та покращення освітлення)
+// Важливо: переконайтеся, що всі URL-адреси текстур для Кредо ВЖЕ оновлені на ваші реальні у функції loadCredoTextures().
+// Ваш Gemini API ключ AIzaSyALcRmtwlSubUpygvp_j9ifowIJV0gzzOI вже вбудований.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -178,7 +180,7 @@ const Shaders = {
             gl_FragColor = vec4(finalColor, 1.0);
         }
     `,
-    pact: ` // Diamond Shader
+    pact: ` // Diamond Shader (Reduced Chromatic Aberration)
         uniform samplerCube uEnvMap;
         uniform float uTime;
         varying vec3 vNormal;
@@ -187,10 +189,11 @@ const Shaders = {
             vec3 normal = normalize(vNormal);
             vec3 viewDir = normalize(cameraPosition - vPosition);
             
-            // Faking dispersion with chromatic aberration on refraction
-            vec3 refractedDirR = refract(viewDir, normal, 1.0 / 1.40);
-            vec3 refractedDirG = refract(viewDir, normal, 1.0 / 1.42);
-            vec3 refractedDirB = refract(viewDir, normal, 1.0 / 1.44);
+            // Faking dispersion with REDUCED chromatic aberration on refraction
+            // Values are very close to make it almost imperceptible
+            vec3 refractedDirR = refract(viewDir, normal, 1.0 / 1.419); 
+            vec3 refractedDirG = refract(viewDir, normal, 1.0 / 1.420); 
+            vec3 refractedDirB = refract(viewDir, normal, 1.0 / 1.421); 
             
             vec3 colorR = textureCube(uEnvMap, refractedDirR).rgb;
             vec3 colorG = textureCube(uEnvMap, refractedDirG).rgb;
@@ -204,49 +207,67 @@ const Shaders = {
             gl_FragColor = vec4(finalColor, 1.0);
         }
     `,
-    credo: ` // Paradise Planet Shader
+    credo: ` // Paradise Planet Shader (Improved Atmosphere and City Lights)
         uniform sampler2D uDayTexture;
         uniform sampler2D uNightTexture;
         uniform sampler2D uCloudTexture;
-        uniform sampler2D uCityLightsTexture; // Нова уніформа
+        uniform sampler2D uCityLightsTexture;
         uniform float uTime;
-        uniform vec3 uSunDirection; // Нова уніформа
+        uniform vec3 uSunDirection;
         varying vec2 vUv;
         varying vec3 vNormal;
+        varying vec3 vPosition; // Додано для точнішого розрахунку
+
         void main() {
             vec3 normal = normalize(vNormal);
-            float lightIntensity = max(0.0, dot(normal, uSunDirection)); // Використовуємо uSunDirection
-            
-            // Денна і нічна сторона
+            float NdotL = dot(normal, uSunDirection); // Косинус кута між нормаллю і світлом
+
+            // 1. Поверхня: День/Ніч/Вогні міст
             vec3 dayColor = texture2D(uDayTexture, vUv).rgb;
             vec3 nightColor = texture2D(uNightTexture, vUv).rgb;
             
-            // Міські вогні, що пульсують
+            vec3 surfaceColor = mix(nightColor, dayColor, NdotL * 0.5 + 0.5); // Плавний перехід день-ніч
+
+            // Міські вогні, видно тільки вночі та пульсують
             vec3 cityLights = texture2D(uCityLightsTexture, vUv).rgb;
-            float pulse_lights = sin(uTime * 5.0 + vUv.x * 20.0) * 0.1 + 0.9; // Пульсація
-            cityLights *= (1.0 - lightIntensity) * pulse_lights * 1.5; // Видно тільки вночі
+            float pulse_lights = sin(uTime * 5.0 + vUv.x * 20.0) * 0.1 + 0.9;
+            float nightBrightness = 1.0 - max(0.0, NdotL); // Більш яскраво вночі
+            surfaceColor += cityLights * pow(nightBrightness, 3.0) * pulse_lights * 2.0;
 
-            vec3 surfaceColor = mix(nightColor + cityLights, dayColor, lightIntensity); // Додали вогні міст
 
-            // Хмари
+            // 2. Хмари: Рух, тіні та інтеграція
             vec2 cloudUv = vUv;
-            cloudUv.x += uTime * 0.01;
-            vec4 cloudColor = texture2D(uCloudTexture, cloudUv);
+            cloudUv.x += uTime * 0.005; // Повільний дрейф хмар
+            vec4 cloudSample = texture2D(uCloudTexture, cloudUv);
             
             // Тіні від хмар на поверхні
-            float shadow = texture2D(uCloudTexture, cloudUv + vec2(0.01, 0.01)).r;
-            surfaceColor *= mix(vec3(0.6), vec3(1.0), shadow);
-            
-            vec3 finalColor = mix(surfaceColor, cloudColor.rgb, cloudColor.a * lightIntensity);
-            
-            // Ефект розсіювання атмосфери (Rayleigh scattering)
-            float NdotL = dot(normal, uSunDirection);
-            float atmosphereEffect = pow(1.0 - dot(normal, -uSunDirection), 2.0); // Краще виражена атмосфера на стороні сонця
-            vec3 atmosphereColor = vec3(0.5, 0.7, 1.0) * atmosphereEffect * 0.3; // Блакитна атмосфера
+            float shadowStrength = texture2D(uCloudTexture, cloudUv + vec2(0.01, 0.01)).r;
+            surfaceColor *= mix(vec3(0.7), vec3(1.0), shadowStrength); // Хмари відкидають тіні
 
-            finalColor = finalColor + atmosphereColor; // Додаємо ефект атмосфери
+            vec3 finalSurfaceColor = mix(surfaceColor, cloudSample.rgb, cloudSample.a); // Накладаємо хмари на поверхню
+
+
+            // 3. Атмосфера: Розсіювання світла (Rayleigh scattering)
+            // Обчислюємо кут між напрямком світла та напрямком погляду
+            vec3 viewDir = normalize(cameraPosition - vPosition);
+            float cosAngle = dot(viewDir, uSunDirection);
             
-            gl_FragColor = vec4(finalColor, 1.0);
+            // Фактор для світанку/заходу сонця
+            float horizonFactor = 1.0 - pow(1.0 - max(0.0, dot(normal, viewDir)), 2.0); // Більш виражено на горизонті
+            
+            // Колір розсіювання (блакитний для денного неба, помаранчевий для світанку/заходу)
+            vec3 scatterColorDay = vec3(0.6, 0.8, 1.0); // Блакитний
+            vec3 scatterColorSunset = vec3(1.0, 0.6, 0.3); // Помаранчевий
+
+            // Визначаємо, де світанок/захід/ніч
+            float terminator = smoothstep(0.0, 0.1, NdotL); // Лінія переходу день-ніч
+            vec3 atmosphereScatter = mix(scatterColorSunset, scatterColorDay, terminator); // Колір атмосфери залежить від дня/ночі
+            
+            // Застосовуємо розсіювання, сильніше на горизонті
+            vec3 atmosphereFinal = atmosphereScatter * pow(horizonFactor, 1.5) * 0.8;
+            
+            // Додаємо атмосферу до фінального кольору
+            gl_FragColor = vec4(finalSurfaceColor + atmosphereFinal, 1.0);
         }
     `,
     nebula: `
@@ -469,16 +490,17 @@ class Universe {
     }
 
     async loadCredoTextures(loader) {
-        // !!! ЦІ ПОСИЛАННЯ ТЕПЕР ОНОВЛЕНО ЗГІДНО З ВАШИМИ НАДАННЯМИ !!!
+        // !!! ЦІ ПОСИЛАННЯ НА ТЕКСТУРИ КРЕДО ВЖЕ ОНОВЛЕНО ВІДПОВІДНО ДО ВАШИХ НАДАНЬ !!!
         const dayTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c024e724b8fbdbee74a65_The%20Supreme%20Ink%20Dynasty.png'); 
         const nightTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c024ead466abd5313cd10_Copilot_20250719_221536.png');
         const cloudTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png'); // Густі білі хмари
+        const cityLightsTexture = await loader.loadAsync('https://www.solarsystemscope.com/textures/download/2k_earth_lights.jpg'); // Додано для Кредо
         
-        [dayTexture, nightTexture, cloudTexture].forEach(t => {
+        [dayTexture, nightTexture, cloudTexture, cityLightsTexture].forEach(t => {
             t.wrapS = THREE.RepeatWrapping;
             t.wrapT = THREE.RepeatWrapping;
         });
-        return { day: dayTexture, night: nightTexture, clouds: cloudTexture };
+        return { day: dayTexture, night: nightTexture, clouds: cloudTexture, cityLights: cityLightsTexture };
     }
 
     addEventListeners() {
@@ -540,22 +562,30 @@ class Universe {
         const sunBody = this.celestialBodies.find(b => b.isSource);
         if (!sunBody || !sunBody.mesh) return;
 
+        const sunWorldPosition = new THREE.Vector3();
+        sunBody.mesh.getWorldPosition(sunWorldPosition);
+
+        // 1. Оновлення God Rays
         const sunScreenPosition = new THREE.Vector3();
         sunBody.mesh.getWorldPosition(sunScreenPosition);
         sunScreenPosition.project(this.cameraManager.camera);
-        
-        // Оновлюємо позицію джерела світла для GodRays
         this.godRaysPass.material.uniforms.uLightPosition.value.x = (sunScreenPosition.x + 1) * 0.5;
         this.godRaysPass.material.uniforms.uLightPosition.value.y = (sunScreenPosition.y + 1) * 0.5;
         
-        // Регулюємо інтенсивність променів залежно від відстані до Сонця
-        const distance = this.cameraManager.camera.position.distanceTo(sunBody.mesh.position);
-        // Плавне згасання променів при наближенні до Сонця
-        this.godRaysPass.material.uniforms.uExposure.value = THREE.MathUtils.lerp(0.4, 0.0, Math.min(distance / 150, 1.0)); 
+        const distanceToSun = this.cameraManager.camera.position.distanceTo(sunWorldPosition);
+        this.godRaysPass.material.uniforms.uExposure.value = THREE.MathUtils.lerp(0.4, 0.0, Math.min(distanceToSun / 150, 1.0)); 
 
-        // Оновлюємо позицію направленого світла, щоб воно слідувало за Сонцем
-        this.sunLight.position.copy(sunBody.mesh.position);
-        this.sunLight.target.position.copy(new THREE.Vector3(0,0,0)); // Спрямовуємо на центр сцени
+        // 2. Оновлення напрямку світла для шейдерів планет
+        const sunDirection = new THREE.Vector3().subVectors(sunWorldPosition, new THREE.Vector3(0,0,0)).normalize(); // Напрямок від центру до Сонця
+        this.celestialBodies.forEach(body => {
+            if (body.mesh && body.mesh.material && body.mesh.material.uniforms && body.mesh.material.uniforms.uSunDirection) {
+                body.mesh.material.uniforms.uSunDirection.value.copy(sunDirection);
+            }
+        });
+
+        // 3. Оновлення направленого світла (для об'єктів без кастомних шейдерів)
+        this.sunLight.position.copy(sunWorldPosition);
+        this.sunLight.target.position.copy(new THREE.Vector3(0,0,0));
         this.sunLight.target.updateMatrixWorld();
     }
 
@@ -885,7 +915,7 @@ class Sun extends CelestialBody {
             transparent: true, 
             depthWrite: false 
         });
-        const corona = new THREE.Mesh(new THREE.SphereGeometry(this.size * 1.6, 128, 128), coronaMaterial);
+        const corona = new THREE.Mesh(new THREE.SphereGeometry(this.size * 1.6, 128, 128), coronaMaterial); // Збільшена корона
         this.group.add(corona);
     }
     update(elapsedTime) {
@@ -953,12 +983,12 @@ class Planet extends CelestialBody {
             this.group.add(atmosphere);
         }
 
-        // Кільця (якщо потрібні)
-        if (config.hasRings && !config.isGlyphRings) { // Перевірка, щоб не дублювати з Archive
+        // Кільця (якщо потрібні, не для Архіва)
+        if (config.hasRings && config.type !== 'Archive') { 
             const ringGeometry = new THREE.TorusGeometry(this.size * 1.5, 0.2, 16, 100);
             const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xAAAAAA, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
             const rings = new THREE.Mesh(ringGeometry, ringMaterial);
-            rings.rotation.x = Math.PI / 2; // Орієнтуємо кільця горизонтально
+            rings.rotation.x = Math.PI / 2; 
             this.group.add(rings);
         }
     }
@@ -986,7 +1016,8 @@ class Planet extends CelestialBody {
 // Спеціалізовані класи для планет
 class Archive extends Planet {
     constructor(config) {
-        super({ ...config, hasAtmosphere: true, atmosphereColor: 0x4a90e2 }); // Archive may have atmosphere
+        // Викликаємо конструктор батьківського класу Planet, але запобігаємо додаванню стандартного мешу одразу
+        super({ ...config, material: null, hasAtmosphere: true, atmosphereColor: 0x4a90e2 }); 
         
         // Custom material for the geode effect
         const material = new THREE.ShaderMaterial({
@@ -1010,35 +1041,37 @@ class Archive extends Planet {
                 blending: THREE.AdditiveBlending,
                 transparent: true,
                 opacity: 0.7,
-                side: THREE.DoubleSide
+                side: THREE.DoubleSide // Відображення з обох сторін
             });
             
+            // InstancedMesh для ефективного рендерингу тисяч гліфів
             this.glyphInstances = new THREE.InstancedMesh(glyphGeometry, glyphMaterial, config.ringDensity);
-            this.glyphInstances.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            this.glyphInstances.instanceMatrix.setUsage(THREE.DynamicDrawUsage); // Будемо оновлювати матриці
 
-            const dummy = new THREE.Object3D();
+            const dummy = new THREE.Object3D(); // Допоміжний об'єкт для позиціонування
             for (let i = 0; i < config.ringDensity; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const radius = THREE.MathUtils.randFloat(config.ringInnerRadius, config.ringOuterRadius);
                 const x = Math.cos(angle) * radius;
                 const z = Math.sin(angle) * radius;
-                const y = THREE.MathUtils.randFloatSpread(0.1); // Small vertical variation
+                const y = THREE.MathUtils.randFloatSpread(0.1); // Невеликі вертикальні варіації
 
                 dummy.position.set(x, y, z);
-                dummy.rotation.y = Math.random() * Math.PI * 2;
-                dummy.updateMatrix();
-                this.glyphInstances.setMatrixAt(i, dummy.matrix);
+                dummy.rotation.y = Math.random() * Math.PI * 2; // Випадкова ротація кожного гліфа
+                dummy.updateMatrix(); // Оновлюємо матрицю
+                this.glyphInstances.setMatrixAt(i, dummy.matrix); // Встановлюємо матрицю для екземпляра
             }
-            this.glyphInstances.instanceMatrix.needsUpdate = true;
+            this.glyphInstances.instanceMatrix.needsUpdate = true; // Повідомляємо Three.js про оновлення
             this.group.add(this.glyphInstances);
         }
     }
     update(elapsedTime, delta) {
-        super.update(elapsedTime, delta); // Оновлює позицію групи та обертання меша
-        this.mesh.material.uniforms.uTime.value = elapsedTime;
+        super.update(elapsedTime, delta); // Оновлює позицію групи та обертання меша (якщо є)
+        if (this.mesh.material.uniforms.uTime) this.mesh.material.uniforms.uTime.value = elapsedTime;
 
         if (this.glyphInstances) {
-            this.glyphInstances.rotation.y += delta * 0.05; // Обертаємо всю систему кілець
+            this.glyphInstances.rotation.y += delta * 0.05; // Повільне обертання всієї системи кілець
+            // Для індивідуальної анімації гліфів, потрібно оновлювати `setMatrixAt` в циклі
         }
     }
 }
