@@ -1,5 +1,4 @@
-// ЗМІСТ ФАЙЛУ: universe.js
-// Цей файл містить всю JavaScript логіку для 3D-всесвіту.
+// ЗМІСТ ФАЙЛУ: universe.js (Повна, оновлена версія)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -354,12 +353,10 @@ class Universe {
     }
 
     async loadCredoTextures(loader) {
-        // !!! ВАЖЛИВО: Замініть ці URL-адреси на ваші реальні, завантажені в Webflow Assets !!!
-        // Щоб отримати URL: Завантажте зображення в Webflow Assets, клацніть на нього, скопіюйте URL.
+        // !!! ЦІ ПОСИЛАННЯ ТЕПЕР ОНОВЛЕНО ВІДПОВІДНО ДО ВАШИХ НАДАНЬ !!!
         const dayTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c024e724b8fbdbee74a65_The%20Supreme%20Ink%20Dynasty.png'); 
         const nightTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c024ead466abd5313cd10_Copilot_20250719_221536.png');
-        // ПОТРІБНО ЗАМІНИТИ: Посилання на текстуру хмар для Кредо (зараз заглушка)
-        const cloudTexture = await loader.loadAsync('https://placehold.co/4096x2048/FFFFFF/000000?text=Credo_Clouds');
+        const cloudTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png'); // Густі білі хмари
         
         [dayTexture, nightTexture, cloudTexture].forEach(t => {
             t.wrapS = THREE.RepeatWrapping;
