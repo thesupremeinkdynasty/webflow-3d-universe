@@ -1,6 +1,4 @@
-// universe.js - Повна версія коду після КРОКУ 6.1 (Усунення "троїння" на Пакті та покращення освітлення)
-// Важливо: переконайтеся, що всі URL-адреси текстур для Кредо ВЖЕ оновлені на ваші реальні у функції loadCredoTextures().
-// Ваш Gemini API ключ AIzaSyALcRmtwlSubUpygvp_j9ifowIJV0gzzOI вже вбудований.
+// universe.js - Повна версія коду після КРОКУ 6.2 (Максимальний Реалізм Кредо, усунення "троїння", підкреслення Променів Бога)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -368,6 +366,9 @@ class Universe {
         // Параметри Bloom: strength, radius, threshold (більш м'який Bloom)
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.7); 
         this.godRaysPass = new ShaderPass(Shaders.godRays);
+        // Збільшимо uExposure та uWeight для більш виражених променів Бога
+        this.godRaysPass.material.uniforms.uExposure.value = 0.35; // Збільшено
+        this.godRaysPass.material.uniforms.uWeight.value = 0.5;   // Збільшено
         this.godRaysPass.needsSwap = true;
         
         const composer = new EffectComposer(this.renderer);
@@ -491,10 +492,10 @@ class Universe {
 
     async loadCredoTextures(loader) {
         // !!! ЦІ ПОСИЛАННЯ НА ТЕКСТУРИ КРЕДО ВЖЕ ОНОВЛЕНО ВІДПОВІДНО ДО ВАШИХ НАДАНЬ !!!
-        const dayTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c024e724b8fbdbee74a65_The%20Supreme%20Ink%20Dynasty.png'); 
+        const dayTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png'); // Нова, детальна денна текстура
         const nightTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c024ead466abd5313cd10_Copilot_20250719_221536.png');
         const cloudTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png'); // Густі білі хмари
-        const cityLightsTexture = await loader.loadAsync('https://www.solarsystemscope.com/textures/download/2k_earth_lights.jpg'); // Додано для Кредо
+        const cityLightsTexture = await loader.loadAsync('https://www.solarsystemscope.com/textures/download/2k_earth_lights.jpg'); // Додано для Кредо (якщо не було)
         
         [dayTexture, nightTexture, cloudTexture, cityLightsTexture].forEach(t => {
             t.wrapS = THREE.RepeatWrapping;
@@ -573,6 +574,7 @@ class Universe {
         this.godRaysPass.material.uniforms.uLightPosition.value.y = (sunScreenPosition.y + 1) * 0.5;
         
         const distanceToSun = this.cameraManager.camera.position.distanceTo(sunWorldPosition);
+        // Регулюємо інтенсивність променів залежно від відстані до Сонця
         this.godRaysPass.material.uniforms.uExposure.value = THREE.MathUtils.lerp(0.4, 0.0, Math.min(distanceToSun / 150, 1.0)); 
 
         // 2. Оновлення напрямку світла для шейдерів планет
@@ -988,7 +990,7 @@ class Planet extends CelestialBody {
             const ringGeometry = new THREE.TorusGeometry(this.size * 1.5, 0.2, 16, 100);
             const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xAAAAAA, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
             const rings = new THREE.Mesh(ringGeometry, ringMaterial);
-            rings.rotation.x = Math.PI / 2; 
+            rings.rotation.x = Math.PI / 2; // Орієнтуємо кільця горизонтально
             this.group.add(rings);
         }
     }
@@ -1040,7 +1042,7 @@ class Archive extends Planet {
                 color: new THREE.Color(config.ringGlyphColor),
                 blending: THREE.AdditiveBlending,
                 transparent: true,
-                opacity: 0.7,
+                opacity: 0.5, // Зроблено більш ефірним
                 side: THREE.DoubleSide // Відображення з обох сторін
             });
             
