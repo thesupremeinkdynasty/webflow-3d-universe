@@ -1,4 +1,4 @@
-// universe.js - Повна версія коду після КРОКУ 7.8 (Зміна версії Three.js на 0.157.0)
+// universe.js - Повна версія коду після КРОКУ 7.8 (Фіксований шістнадцятковий колір 0xFF0000 за інструкціями консолі)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -11,6 +11,7 @@ import gsap from 'gsap';
 // =============================================================================
 // --- GLSL: Душа наших світів, написана мовою світла ---
 // =============================================================================
+// Усі GLSL шейдери залишені, але планети поки використовують MeshBasicMaterial для діагностики.
 const Shaders = {
     noise: `
         vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -235,7 +236,7 @@ class Universe {
                 case 'Credo': planet = new Credo(config); break;
                 default: planet = new Planet(config); 
                     // *** НОВА ЧАСТИНА: Явно створюємо mesh для базових Planet
-                    const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x00FF00), transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР (вже як THREE.Color)
+                    const material = new THREE.MeshBasicMaterial({ color: 0xFF0000, transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР за інструкціями консолі (ЧЕРВОНИЙ)
                     planet.mesh = new THREE.Mesh(new THREE.SphereGeometry(planet.size, 64, 64), material);
                     planet.mesh.userData.celestialBody = planet;
                     planet.group.add(planet.mesh);
