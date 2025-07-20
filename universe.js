@@ -1,4 +1,5 @@
-// universe.js - Повна версія коду після КРОКУ 7.2 (Всі складні шейдери замінені на базові MeshBasicMaterial для діагностики)
+// universe.js - Повна версія коду після КРОКУ 7.3 (Рефакторинг конструкторів, прямі кольори)
+// Ця версія має усунути помилку "color undefineable".
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -11,7 +12,7 @@ import gsap from 'gsap';
 // =============================================================================
 // --- GLSL: Душа наших світів, написана мовою світла ---
 // =============================================================================
-// ВСІ GLSL ШЕЙДЕРИ ЗАЛИШЕНІ, АЛЕ ТИМЧАСОВО НЕ ВИКОРИСТОВУЮТЬСЯ СПЕЦІАЛІЗОВАНИМИ ПЛАНЕТАМИ
+// Усі GLSL шейдери залишаються, але планети поки використовують MeshBasicMaterial для діагностики.
 const Shaders = {
     noise: `
         vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -66,7 +67,7 @@ const Shaders = {
     archive: `/* ... */`,
     forge: `/* ... */`,
     pact: `/* ... */`,
-    credo: `/* ... */`, // This is the old complex shader, but Credo will use MeshBasicMaterial
+    credo: `/* ... */`,
     nebula: `/* ... */`,
     godRays: { uniforms: {}, vertexShader: ``, fragmentShader: `` }
 };
@@ -233,7 +234,7 @@ class Universe {
                 case 'Forge': planet = new Forge(config); break;
                 case 'Pact': planet = new Pact(config, this.renderer, this.scene); break;
                 case 'Credo': planet = new Credo(config); break;
-                default: planet = new Planet(config);
+                default: planet = new Planet(config); 
             }
             this.celestialBodies.push(planet);
             this.scene.add(planet.group);
@@ -241,7 +242,6 @@ class Universe {
     }
 
     async loadCredoTextures(loader) {
-        // !!! ЦІ ПОСИЛАННЯ НА ТЕКСТУРИ КРЕДО ВЖЕ ОНОВЛЕНО ВІДПОВІДНО ДО ВАШИХ НАДАНЬ !!!
         console.log("Loading Credo day texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png');
         const dayTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png');
 
@@ -689,15 +689,9 @@ class Planet extends CelestialBody {
         this.orbit = config.orbit;
         this.orbit.offset = Math.random() * Math.PI * 2; // Випадковий початковий кут для різноманітності
 
-        // Тимчасовий MeshBasicMaterial для діагностики
-        const diagnosticMaterial = new THREE.MeshBasicMaterial({ 
-            color: new THREE.Color(config.color), // Використовуємо колір з конфігу, він точно визначений
-            transparent: true,
-            opacity: 1.0 // Повна непрозорість для видимості
-        });
-        this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), diagnosticMaterial);
-        this.mesh.userData.celestialBody = this; // Для Raycasting
-        this.group.add(this.mesh);
+        // ***ВАЖЛИВО: НОВИЙ ПАТТЕРН КОНСТРУКТОРА***
+        // Базовий mesh не створюється тут, а створюється в спеціалізованих класах або в default-кейсі нижче.
+        this.mesh = null; // Забезпечуємо, що mesh спочатку null
 
         // Атмосфера (якщо потрібна)
         if (config.hasAtmosphere) {
@@ -735,10 +729,10 @@ class Planet extends CelestialBody {
 // Спеціалізовані класи для планет
 class Archive extends Planet {
     constructor(config) {
-        super({ ...config, material: null, hasAtmosphere: true, atmosphereColor: 0x4a90e2 }); 
+        super(config); // Викликаємо батьківський конструктор
         
         // Custom material for the geode effect - використовуємо базовий для діагностики
-        const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(config.color), transparent: true, opacity: 1.0 });
+        const material = new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 1.0 });
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh); 
@@ -785,8 +779,8 @@ class Archive extends Planet {
     
 class Forge extends Planet {
     constructor(config) {
-        super({ ...config, material: null }); // Pass null material
-        const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(config.color), transparent: true, opacity: 1.0 });
+        super(config); // Викликаємо батьківський конструктор
+        const material = new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 1.0 });
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh);
@@ -799,12 +793,12 @@ class Forge extends Planet {
 
 class Pact extends Planet {
     constructor(config, renderer, scene) {
-        super({ ...config, material: null }); // Pass null material
+        super(config); // Викликаємо батьківський конструктор
         this.cubeCamera = new THREE.CubeCamera(1, 2000, new THREE.WebGLCubeRenderTarget(256));
         this.scene = scene;
         this.renderer = renderer;
         
-        const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(config.color), transparent: true, opacity: 1.0 });
+        const material = new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 1.0 });
         this.mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(this.size, 5), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh); 
@@ -821,10 +815,10 @@ class Pact extends Planet {
 
 class Credo extends Planet {
     constructor(config) {
+        super(config); // Викликаємо батьківський конструктор
         // ВИКОРИСТОВУЄМО ТИМЧАСОВИЙ BASIC МАТЕРІАЛ ДЛЯ ДІАГНОСТИКИ
-        super({ ...config, hasAtmosphere: true, atmosphereColor: 0x4a90e2, material: null }); 
         const material = new THREE.MeshBasicMaterial({ 
-            color: new THREE.Color(config.color), // ВИКОРИСТОВУЄМО КОЛІР З КОНФІГУ ДЛЯ ГАРАНТІЇ
+            color: config.color, // ВИКОРИСТОВУЄМО КОЛІР З КОНФІГУ ДЛЯ ГАРАНТІЇ
             transparent: true,
             opacity: 1.0 // Повна непрозорість для видимості
         });
