@@ -1,18 +1,18 @@
-// universe.js - Повна версія коду після КРОКУ 7.3 (Рефакторинг конструкторів, прямі кольори)
-// Ця версія має усунути помилку "color undefineable".
+// universe.js - Повна версія коду після КРОКУ 7.4 (Кольори планет як THREE.Color об'єкти)
+// Ця версія має остаточно усунути помилку "color undefineable".
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { RenderPass } = 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { UnrealBloomPass } = 'three/addons/postprocessing/UnrealBloomPass.js';
 import gsap from 'gsap';
 
 // =============================================================================
 // --- GLSL: Душа наших світів, написана мовою світла ---
 // =============================================================================
-// Усі GLSL шейдери залишаються, але планети поки використовують MeshBasicMaterial для діагностики.
+// Усі GLSL шейдери залишені, але планети поки використовують MeshBasicMaterial для діагностики.
 const Shaders = {
     noise: `
         vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -493,8 +493,8 @@ class UIManager {
 
         // Пульсація
         if (this.pulseTween) this.pulseTween.kill();
-        this.planets.forEach(p => { if(p.mesh && p.mesh.material.uniforms.uPulse) gsap.to(p.mesh.material.uniforms.uPulse, { value: 0, duration: 0.5 }); });
-        if(targetBody.mesh && targetBody.mesh.material.uniforms.uPulse) {
+        this.planets.forEach(p => { if(p.mesh && p.mesh.material.uniforms && p.mesh.material.uniforms.uPulse) gsap.to(p.mesh.material.uniforms.uPulse, { value: 0, duration: 0.5 }); });
+        if(targetBody.mesh && targetBody.mesh.material.uniforms && targetBody.mesh.material.uniforms.uPulse) {
             this.pulseTween = gsap.to(targetBody.mesh.material.uniforms.uPulse, { value: 1, duration: 1.5, repeat: -1, yoyo: true, ease: 'power1.inOut' });
         }
     }
@@ -505,7 +505,7 @@ class UIManager {
         this.cameraManager.returnToOverview();
         this.updateSidebarToGlobalView();
         if (this.pulseTween) this.pulseTween.kill();
-        this.planets.forEach(p => { if(p.mesh && p.mesh.material.uniforms.uPulse) gsap.to(p.mesh.material.uniforms.uPulse, { value: 0, duration: 0.5 }); });
+        this.planets.forEach(p => { if(p.mesh && p.mesh.material.uniforms && p.mesh.material.uniforms.uPulse) gsap.to(p.mesh.material.uniforms.uPulse, { value: 0, duration: 0.5 }); });
     }
 
     updateSidebarToFocusedView(targetBody) {
@@ -708,7 +708,7 @@ class Planet extends CelestialBody {
         // Кільця (якщо потрібні, не для Архіва)
         if (config.hasRings && config.type !== 'Archive') { 
             const ringGeometry = new THREE.TorusGeometry(this.size * 1.5, 0.2, 16, 100);
-            const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xAAAAAA, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+            const ringMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xAAAAAA), side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
             const rings = new THREE.Mesh(ringGeometry, ringMaterial);
             rings.rotation.x = Math.PI / 2; // Орієнтуємо кільця горизонтально
             this.group.add(rings);
