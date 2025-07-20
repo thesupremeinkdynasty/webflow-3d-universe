@@ -1,17 +1,16 @@
-// universe.js - Повна версія коду після КРОКУ 7.7 (Фіксований колір THREE.Color(0x00FF00) за інструкціями консолі)
+// universe.js - Повна версія коду після КРОКУ 7.8 (Зміна версії Three.js на 0.157.0)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } = 'three/addons/postprocessing/RenderPass.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { UnrealBloomPass } = 'three/addons/postprocessing/UnrealBloomPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import gsap from 'gsap';
 
 // =============================================================================
 // --- GLSL: Душа наших світів, написана мовою світла ---
 // =============================================================================
-// Усі GLSL шейдери залишені, але планети поки використовують MeshBasicMaterial для діагностики.
 const Shaders = {
     noise: `
         vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
