@@ -1,4 +1,4 @@
-// universe.js - Повна версія коду після КРОКУ 9.2 (Комплексне виправлення за вказівками консолі)
+// universe.js - Повна версія коду після КРОКУ 9.3 (Виправлення CORS, 404, Uncaught Promise, додаткова діагностика WebGL)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -345,39 +345,45 @@ class Universe {
     }
 
     async init() {
-        this.loaderManager = new LoaderManager();
-        
-        this.scene = new THREE.Scene();
-        this.cameraManager = new CameraManager(this.container);
-        this.renderer = this.createRenderer();
-        this.container.appendChild(this.renderer.domElement);
+        try { // Додано try...catch для перехоплення помилок в ініціалізації
+            this.loaderManager = new LoaderManager();
+            
+            this.scene = new THREE.Scene();
+            this.cameraManager = new CameraManager(this.container);
+            this.renderer = this.createRenderer();
+            this.container.appendChild(this.renderer.domElement);
 
-        // Додаємо обробники подій для WebGL-контексту
-        this.renderer.domElement.addEventListener('webglcontextlost', (event) => {
-            console.error('WebGL context lost!', event);
-            event.preventDefault(); // Запобігаємо автоматичному відновленню браузером
-            // Тут можна додати логіку для виведення повідомлення користувачу про помилку
-        });
-        this.renderer.domElement.addEventListener('webglcontextrestored', () => {
-            console.log('WebGL context restored!');
-            // Можливо, потрібно переініціалізувати сцену, якщо це не відбувається автоматично
-        });
+            // Додаємо обробники подій для WebGL-контексту
+            this.renderer.domElement.addEventListener('webglcontextlost', (event) => {
+                console.error('WebGL context lost!', event);
+                event.preventDefault(); // Запобігаємо автоматичному відновленню браузером
+                // Тут можна додати логіку для виведення повідомлення користувачу про помилку
+            });
+            this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+                console.log('WebGL context restored!');
+                // Можливо, потрібно переініціалізувати сцену, якщо це не відбувається автоматично
+            });
 
 
-        this.createLighting();
-        await this.createCelestialBodies();
-        this.createStarfield();
-        this.createNebula();
-        this.createCosmicDust();
+            this.createLighting();
+            await this.createCelestialBodies();
+            this.createStarfield();
+            this.createNebula();
+            this.createCosmicDust();
 
-        this.composer = this.createComposer();
-        this.apiService = new ApiService();
-        this.uiManager = new UIManager(this.cameraManager, this.celestialBodies.filter(b => !b.isSource), this.apiService);
-        
-        this.addEventListeners();
-        this.animate();
+            this.composer = this.createComposer();
+            this.apiService = new ApiService();
+            this.uiManager = new UIManager(this.cameraManager, this.celestialBodies.filter(b => !b.isSource), this.apiService);
+            
+            this.addEventListeners();
+            this.animate();
 
-        this.loaderManager.finish();
+            this.loaderManager.finish();
+        } catch (error) {
+            console.error("An error occurred during Universe initialization:", error);
+            // Тут можна вивести повідомлення користувачу про помилку завантаження
+            this.loaderManager.displayError("На жаль, Всесвіт не зміг завантатись. Спробуйте оновити сторінку або перевірити підключення.");
+        }
     }
 
     createRenderer() {
@@ -397,9 +403,9 @@ class Universe {
         const gl = renderer.getContext();
         if (gl) {
             console.log("WebGL Context obtained successfully:", gl);
-            console.log("WebGL Vendor:", gl.getParameter(gl.VENDOR)); // Виправлено gl.E.VENDOR на gl.VENDOR
-            console.log("WebGL Renderer:", gl.getParameter(gl.RENDERER)); // Виправлено gl.E.RENDERER на gl.RENDERER
-            console.log("WebGL Version:", gl.getParameter(gl.VERSION)); // Виправлено gl.E.VERSION на gl.VERSION
+            console.log("WebGL Vendor:", gl.getParameter(gl.VENDOR)); 
+            console.log("WebGL Renderer:", gl.getParameter(gl.RENDERER)); 
+            console.log("WebGL Version:", gl.getParameter(gl.VERSION)); 
         } else {
             console.error("Failed to obtain WebGL Context!");
         }
@@ -577,23 +583,34 @@ class Universe {
     }
 
     async loadCredoTextures(loader) {
-        console.log("Loading Credo day texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png');
-        const dayTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png');
+        try { // Додано try...catch для перехоплення помилок завантаження текстур
+            console.log("Loading Credo day texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png');
+            const dayTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png');
 
-        console.log("Loading Credo night texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c024ead466abd5313cd10_Copilot_20250719_221536.png');
-        const nightTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c024ead466abd5313cd10_Copilot_20250719_221536.png');
-        
-        console.log("Loading Credo cloud texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png');
-        const cloudTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png');
+            console.log("Loading Credo night texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c024ead466abd5313cd10_Copilot_20250719_221536.png');
+            const nightTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c024ead466abd5313cd10_Copilot_20250719_221536.png');
+            
+            console.log("Loading Credo cloud texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png');
+            const cloudTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png');
 
-        console.log("Loading Credo city lights texture:", 'https://www.solarsystemscope.com/textures/download/2k_earth_lights.jpg');
-        const cityLightsTexture = await loader.loadAsync('https://www.solarsystemscope.com/textures/download/2k_earth_lights.jpg'); 
-        
-        [dayTexture, nightTexture, cloudTexture, cityLightsTexture].forEach(t => {
-            t.wrapS = THREE.RepeatWrapping;
-            t.wrapT = THREE.RepeatWrapping;
-        });
-        return { day: dayTexture, night: nightTexture, clouds: cloudTexture, cityLights: cityLightsTexture };
+            console.log("Loading Credo city lights texture:", 'https://placehold.co/4096x2048/000033/FFFF00?text=City_Lights_Placeholder'); // Замінено на плейсхолдер
+            const cityLightsTexture = await loader.loadAsync('https://placehold.co/4096x2048/000033/FFFF00?text=City_Lights_Placeholder'); 
+            
+            [dayTexture, nightTexture, cloudTexture, cityLightsTexture].forEach(t => {
+                t.wrapS = THREE.RepeatWrapping;
+                t.wrapT = THREE.RepeatWrapping;
+            });
+            return { day: dayTexture, night: nightTexture, clouds: cloudTexture, cityLights: cityLightsTexture };
+        } catch (error) {
+            console.error("Error loading Credo textures:", error);
+            // Повертаємо порожні текстури або null, щоб не зламати рендеринг
+            return {
+                day: new THREE.Texture(),
+                night: new THREE.Texture(),
+                clouds: new THREE.Texture(),
+                cityLights: new THREE.Texture()
+            };
+        }
     }
 
     addEventListeners() {
@@ -1186,102 +1203,4 @@ class Pact extends Planet {
                 uTime: { value: 0 },
                 uEnvMap: { value: this.cubeCamera.renderTarget.texture }
             },
-            vertexShader: Shaders.sharedVertex,
-            fragmentShader: Shaders.pact
-        });
-        this.mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(this.size, 5), material);
-        this.mesh.userData.celestialBody = this;
-        this.group.add(this.mesh); 
-    }
-    update(elapsedTime, delta) {
-        super.update(elapsedTime, delta);
-        this.mesh.visible = false; 
-        this.cubeCamera.position.copy(this.group.position);
-        this.cubeCamera.update(this.renderer, this.scene);
-        this.mesh.visible = true; 
-        this.mesh.material.uniforms.uTime.value = elapsedTime; // Обновляем время для шейдера
-    }
-}
-
-class Credo extends Planet {
-    constructor(config) {
-        super(config); // Вызываем родительский конструктор
-        const material = new THREE.ShaderMaterial({ // Возвращаем ShaderMaterial для Credo
-            uniforms: {
-                uTime: { value: 0 },
-                uDayTexture: { value: config.textures.day },
-                uNightTexture: { value: config.textures.night },
-                uCloudTexture: { value: config.textures.clouds },
-                uCityLightsTexture: { value: config.textures.cityLights },
-                uSunDirection: { value: new THREE.Vector3(1, 0, 0) }
-            },
-            vertexShader: Shaders.sharedVertex,
-            fragmentShader: Shaders.credo
-        });
-        this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
-        this.mesh.userData.celestialBody = this;
-        this.group.add(this.mesh); 
-        
-        // Атмосфера
-        const atmosphereMaterial = new THREE.ShaderMaterial({ // Возвращаем ShaderMaterial для атмосферы
-            uniforms: {
-                uSunDirection: { value: new THREE.Vector3(1, 0, 0) },
-                uAtmosphereColor: { value: config.color } // Используем цвет планеты для атмосферы
-            },
-            vertexShader: Shaders.sharedVertex, 
-            fragmentShader: Shaders.noise + `
-                uniform vec3 uSunDirection;
-                uniform vec3 uAtmosphereColor;
-                varying vec3 vNormal;
-                varying vec3 vPosition;
-                void main() {
-                    vec3 normal = normalize(vNormal);
-                    float intensity = pow(0.6 - dot(normal, vec3(0.0, 0.0, 1.0)), 2.0);
-                    float fresnel = dot(normalize(uSunDirection), normal);
-                    fresnel = pow(1.0 - fresnel, 4.0);
-                    float finalIntensity = intensity * fresnel;
-                    gl_FragColor = vec4(uAtmosphereColor, 1.0) * finalIntensity;
-                }
-            `,
-            blending: THREE.AdditiveBlending,
-            side: THREE.BackSide,
-            transparent: true
-        });
-        const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(this.size * 1.1, 64, 64), atmosphereMaterial);
-        this.group.add(atmosphere);
-    }
-    update(elapsedTime, delta) {
-        super.update(elapsedTime, delta);
-        this.mesh.material.uniforms.uTime.value = elapsedTime;
-        // Обновление uSunDirection для шейдера Credo и его атмосферы
-        if (this.mesh.material.uniforms.uSunDirection && this.group.parent) {
-            const sunBody = this.group.parent.children.find(c => c.userData.celestialBody && c.userData.celestialBody.isSource);
-            if (sunBody) {
-                const sunPosition = new THREE.Vector3();
-                sunBody.getWorldPosition(sunPosition);
-                const sunDirection = new THREE.Vector3().subVectors(sunPosition, this.mesh.position).normalize();
-                this.mesh.material.uniforms.uSunDirection.value.copy(sunDirection);
-                // Обновляем атмосферу, если она есть
-                if (this.group.children[1] && this.group.children[1].material.uniforms && this.group.children[1].material.uniforms.uSunDirection) {
-                    this.group.children[1].material.uniforms.uSunDirection.value.copy(sunDirection);
-                }
-            }
-        }
-    }
-}
-
-// --- Ініціалізація курсору ---
-const cursorDot = document.getElementById('cursor-dot');
-window.addEventListener('mousemove', e => {
-    gsap.to(cursorDot, {
-        duration: 0.3,
-        x: e.clientX,
-        y: e.clientY,
-        ease: 'power2.out'
-    });
-});
-
-// =============================================================================
-// --- ЗАПУСК ВСЕСВІТУ ---
-// =============================================================================
-new Universe();
+            vertexSha
