@@ -1,4 +1,4 @@
-// universe.js - Повна версія коду після КРОКУ 8.1 (Максимальний реалізм галактики)
+// universe.js - Повна версія коду після КРОКУ 8.2 (Повне відновлення реалізму планет та деталізації)
 // Цей код є втіленням вашого задуму без компромісів.
 
 import * as THREE from 'three';
@@ -389,7 +389,7 @@ class Universe {
             logarithmicDepthBuffer: true // Повертаємо logarithmicDepthBuffer
         });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        renderer.setPixelRatio(window.devicePixelRatio); // Змінено на повний pixelRatio для максимальної деталізації
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.2;
         renderer.setClearColor(0x000000, 0); // Прозорий фон для рендерера
@@ -398,9 +398,9 @@ class Universe {
         const gl = renderer.getContext();
         if (gl) {
             console.log("WebGL Context obtained successfully:", gl);
-            console.log("WebGL Vendor:", gl.getParameter(gl.E.VENDOR));
-            console.log("WebGL Renderer:", gl.getParameter(gl.E.RENDERER));
-            console.log("WebGL Version:", gl.getParameter(gl.E.VERSION));
+            console.log("WebGL Vendor:", gl.getParameter(gl.VENDOR)); // Виправлено gl.E.VENDOR на gl.VENDOR
+            console.log("WebGL Renderer:", gl.getParameter(gl.RENDERER)); // Виправлено gl.E.RENDERER на gl.RENDERER
+            console.log("WebGL Version:", gl.getParameter(gl.VERSION)); // Виправлено gl.E.VERSION на gl.VERSION
         } else {
             console.error("Failed to obtain WebGL Context!");
         }
@@ -525,7 +525,25 @@ class Universe {
                 default: 
                     // Для базового класу Planet (Гільдія, Інсайти)
                     planet = new Planet(config); 
-                    const material = new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 1.0 });
+                    const material = new THREE.ShaderMaterial({ // Повертаємо ShaderMaterial для базових планет
+                        uniforms: {
+                            uTime: { value: 0 },
+                            uPulse: { value: 0 },
+                            uColor: { value: config.color }
+                        },
+                        vertexShader: Shaders.sharedVertex,
+                        fragmentShader: Shaders.noise + `
+                            uniform float uTime;
+                            uniform float uPulse;
+                            uniform vec3 uColor;
+                            varying vec2 vUv;
+                            void main() {
+                                float n = fbm(vec3(vUv * 8.0, uTime * 0.05), 5);
+                                vec3 finalColor = uColor * (0.7 + n * 0.6) * (1.0 + uPulse * 0.2);
+                                gl_FragColor = vec4(finalColor, 1.0);
+                            }
+                        `
+                    });
                     planet.mesh = new THREE.Mesh(new THREE.SphereGeometry(planet.size, 64, 64), material);
                     planet.mesh.userData.celestialBody = planet;
                     planet.group.add(planet.mesh);
