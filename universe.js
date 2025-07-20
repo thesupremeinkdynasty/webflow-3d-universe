@@ -1,4 +1,4 @@
-// universe.js - Повна версія коду після КРОКУ 7.6 (Фіксований зелений колір за інструкціями консолі)
+// universe.js - Повна версія коду після КРОКУ 7.7 (Фіксований шістнадцятковий колір, без пост-обробки)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -122,16 +122,17 @@ class Universe {
 
     createComposer() {
         const renderPass = new RenderPass(this.scene, this.cameraManager.camera);
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.7); 
-        this.godRaysPass = new ShaderPass(Shaders.godRays);
-        this.godRaysPass.material.uniforms.uExposure.value = 0.35;
-        this.godRaysPass.material.uniforms.uWeight.value = 0.5;   
-        this.godRaysPass.needsSwap = true;
+        // Тимчасово вимкнено Bloom та GodRays для діагностики помилки "color undefined"
+        // const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.7); 
+        // this.godRaysPass = new ShaderPass(Shaders.godRays);
+        // this.godRaysPass.material.uniforms.uExposure.value = 0.35;
+        // this.godRaysPass.material.uniforms.uWeight.value = 0.5;   
+        // this.godRaysPass.needsSwap = true;
         
         const composer = new EffectComposer(this.renderer);
         composer.addPass(renderPass);
-        composer.addPass(this.godRaysPass);
-        composer.addPass(bloomPass);
+        // composer.addPass(this.godRaysPass); // Вимкнено
+        // composer.addPass(bloomPass); // Вимкнено
         return composer;
     }
 
@@ -235,7 +236,7 @@ class Universe {
                 case 'Credo': planet = new Credo(config); break;
                 default: planet = new Planet(config); 
                     // *** НОВА ЧАСТИНА: Явно створюємо mesh для базових Planet
-                    const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x00FF00), transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР
+                    const material = new THREE.MeshBasicMaterial({ color: 0x00FF00, transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР
                     planet.mesh = new THREE.Mesh(new THREE.SphereGeometry(planet.size, 64, 64), material);
                     planet.mesh.userData.celestialBody = planet;
                     planet.group.add(planet.mesh);
@@ -823,7 +824,7 @@ class Credo extends Planet {
         super(config); // Викликаємо батьківський конструктор
         // ВИКОРИСТОВУЄМО ТИМЧАСОВИЙ BASIC МАТЕРІАЛ ДЛЯ ДІАГНОСТИКИ
         const material = new THREE.MeshBasicMaterial({ 
-            color: new THREE.Color(0x00FF00), // ФІКСОВАНИЙ КОЛІР (вже був у config, але тут використовуємо для гарантії)
+            color: 0x00FF00, // ФІКСОВАНИЙ КОЛІР
             transparent: true,
             opacity: 1.0 // Повна непрозорість для видимості
         });
@@ -833,7 +834,7 @@ class Credo extends Planet {
         
         // Атмосфера також MeshBasicMaterial для діагностики
         const atmosphereMaterial = new THREE.MeshBasicMaterial({
-            color: new THREE.Color(0x00FF00), // ФІКСОВАНИЙ КОЛІР
+            color: 0x00FF00, // ФІКСОВАНИЙ КОЛІР
             transparent: true,
             opacity: 0.1, // Низька прозорість
             side: THREE.BackSide
