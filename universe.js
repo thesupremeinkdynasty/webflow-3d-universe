@@ -1,4 +1,4 @@
-// universe.js - Повна версія коду після КРОКУ 7.7 (Фіксований шістнадцятковий колір, без пост-обробки)
+// universe.js - Повна версія коду після КРОКУ 7.7 (Фіксований колір THREE.Color(0x00FF00) за інструкціями консолі)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -236,7 +236,7 @@ class Universe {
                 case 'Credo': planet = new Credo(config); break;
                 default: planet = new Planet(config); 
                     // *** НОВА ЧАСТИНА: Явно створюємо mesh для базових Planet
-                    const material = new THREE.MeshBasicMaterial({ color: 0x00FF00, transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР
+                    const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x00FF00), transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР (вже як THREE.Color)
                     planet.mesh = new THREE.Mesh(new THREE.SphereGeometry(planet.size, 64, 64), material);
                     planet.mesh.userData.celestialBody = planet;
                     planet.group.add(planet.mesh);
@@ -702,7 +702,7 @@ class Planet extends CelestialBody {
         // Атмосфера (якщо потрібна)
         if (config.hasAtmosphere) {
             const atmosphereMaterial = new THREE.MeshBasicMaterial({
-                color: config.atmosphereColor.getHex(), // ВИКОРИСТОВУЄМО getHex()
+                color: new THREE.Color(0x00FF00), // ФІКСОВАНИЙ КОЛІР за інструкціями консолі
                 transparent: true,
                 opacity: 0.1, // Низька прозорість атмосфери
                 side: THREE.BackSide
@@ -714,7 +714,7 @@ class Planet extends CelestialBody {
         // Кільця (якщо потрібні, не для Архіва)
         if (config.hasRings && config.type !== 'Archive') { 
             const ringGeometry = new THREE.TorusGeometry(this.size * 1.5, 0.2, 16, 100);
-            const ringMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xAAAAAA).getHex(), side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+            const ringMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x00FF00), side: THREE.DoubleSide, transparent: true, opacity: 0.6 }); // ФІКСОВАНИЙ КОЛІР за інструкціями консолі
             const rings = new THREE.Mesh(ringGeometry, ringMaterial);
             rings.rotation.x = Math.PI / 2; // Орієнтуємо кільця горизонтально
             this.group.add(rings);
@@ -738,7 +738,7 @@ class Archive extends Planet {
         super(config); // Викликаємо батьківський конструктор
         
         // Custom material for the geode effect - використовуємо базовий для діагностики
-        const material = new THREE.MeshBasicMaterial({ color: 0x00FF00, transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР
+        const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x00FF00), transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР за інструкціями консолі
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh); 
@@ -747,7 +747,7 @@ class Archive extends Planet {
         if (config.hasRings) {
             const glyphGeometry = new THREE.PlaneGeometry(0.1, 0.1); 
             const glyphMaterial = new THREE.MeshBasicMaterial({ 
-                color: 0x00FF00, // ФІКСОВАНИЙ КОЛІР
+                color: new THREE.Color(0x00FF00), // ФІКСОВАНИЙ КОЛІР за інструкціями консолі
                 blending: THREE.AdditiveBlending,
                 transparent: true,
                 opacity: 0.1, // Зроблено ще більш ефірним для діагностики
@@ -786,7 +786,7 @@ class Archive extends Planet {
 class Forge extends Planet {
     constructor(config) {
         super(config); // Викликаємо батьківський конструктор
-        const material = new THREE.MeshBasicMaterial({ color: 0x00FF00, transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР
+        const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x00FF00), transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР за інструкціями консолі
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh);
@@ -804,7 +804,7 @@ class Pact extends Planet {
         this.scene = scene;
         this.renderer = renderer;
         
-        const material = new THREE.MeshBasicMaterial({ color: 0x00FF00, transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР
+        const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x00FF00), transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР за інструкціями консолі
         this.mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(this.size, 5), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh); 
@@ -824,7 +824,7 @@ class Credo extends Planet {
         super(config); // Викликаємо батьківський конструктор
         // ВИКОРИСТОВУЄМО ТИМЧАСОВИЙ BASIC МАТЕРІАЛ ДЛЯ ДІАГНОСТИКИ
         const material = new THREE.MeshBasicMaterial({ 
-            color: 0x00FF00, // ФІКСОВАНИЙ КОЛІР
+            color: new THREE.Color(0x00FF00), // ФІКСОВАНИЙ КОЛІР за інструкціями консолі
             transparent: true,
             opacity: 1.0 // Повна непрозорість для видимості
         });
@@ -834,7 +834,7 @@ class Credo extends Planet {
         
         // Атмосфера також MeshBasicMaterial для діагностики
         const atmosphereMaterial = new THREE.MeshBasicMaterial({
-            color: 0x00FF00, // ФІКСОВАНИЙ КОЛІР
+            color: new THREE.Color(0x00FF00), // ФІКСОВАНИЙ КОЛІР за інструкціями консолі
             transparent: true,
             opacity: 0.1, // Низька прозорість
             side: THREE.BackSide
