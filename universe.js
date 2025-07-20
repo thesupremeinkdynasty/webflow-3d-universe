@@ -1,5 +1,4 @@
-// universe.js - Повна версія коду після КРОКУ 7.5 (Рефакторинг конструкторів, прямі кольори)
-// Ця версія має остаточно усунути помилку "color undefineable" та візуальні артефакти.
+// universe.js - Повна версія коду після КРОКУ 7.5 (Кольори як шістнадцяткові числа для MeshBasicMaterial)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -234,7 +233,7 @@ class Universe {
                 case 'Forge': planet = new Forge(config); break;
                 case 'Pact': planet = new Pact(config, this.renderer, this.scene); break;
                 case 'Credo': planet = new Credo(config); break;
-                default: planet = new Planet(config); // Використовуємо базовий Planet для інших типів поки що
+                default: planet = new Planet(config); 
                     // *** НОВА ЧАСТИНА: Явно створюємо mesh для базових Planet
                     const material = new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 1.0 });
                     planet.mesh = new THREE.Mesh(new THREE.SphereGeometry(planet.size, 64, 64), material);
@@ -697,19 +696,12 @@ class Planet extends CelestialBody {
 
         // ***ВАЖЛИВО: ТЕПЕР МЕШ СТВОРЮЄТЬСЯ ТУТ ЛИШЕ ЯКЩО НЕМАЄ СПЕЦІАЛІЗОВАНОГО МАТЕРІАЛУ В КОНФІГУ***
         // Інакше він буде створений у спеціалізованих класах
-        if (!config.material) { // Якщо спец. матеріал не передано з конфігу (як для Гільдії/Інсайтів)
-            const material = new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 1.0 });
-            this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
-            this.mesh.userData.celestialBody = this;
-            this.group.add(this.mesh);
-        } else {
-            this.mesh = null; // Буде встановлено в спеціалізованому конструкторі
-        }
+        this.mesh = null; // Забезпечуємо, що mesh спочатку null
 
         // Атмосфера (якщо потрібна)
         if (config.hasAtmosphere) {
             const atmosphereMaterial = new THREE.MeshBasicMaterial({
-                color: new THREE.Color(config.atmosphereColor || 0x4a90e2).add(new THREE.Color(0.2,0.2,0.2)), // Трохи світліший колір для атмосфери
+                color: config.atmosphereColor.getHex(), // ВИКОРИСТОВУЄМО getHex()
                 transparent: true,
                 opacity: 0.1, // Низька прозорість атмосфери
                 side: THREE.BackSide
@@ -721,7 +713,7 @@ class Planet extends CelestialBody {
         // Кільця (якщо потрібні, не для Архіва)
         if (config.hasRings && config.type !== 'Archive') { 
             const ringGeometry = new THREE.TorusGeometry(this.size * 1.5, 0.2, 16, 100);
-            const ringMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xAAAAAA), side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+            const ringMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xAAAAAA).getHex(), side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
             const rings = new THREE.Mesh(ringGeometry, ringMaterial);
             rings.rotation.x = Math.PI / 2; // Орієнтуємо кільця горизонтально
             this.group.add(rings);
@@ -745,7 +737,7 @@ class Archive extends Planet {
         super(config); // Викликаємо батьківський конструктор
         
         // Custom material for the geode effect - використовуємо базовий для діагностики
-        const material = new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 1.0 });
+        const material = new THREE.MeshBasicMaterial({ color: config.color.getHex(), transparent: true, opacity: 1.0 });
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh); 
@@ -754,7 +746,7 @@ class Archive extends Planet {
         if (config.hasRings) {
             const glyphGeometry = new THREE.PlaneGeometry(0.1, 0.1); 
             const glyphMaterial = new THREE.MeshBasicMaterial({ 
-                color: new THREE.Color(config.ringGlyphColor),
+                color: config.ringGlyphColor.getHex(), // ВИКОРИСТОВУЄМО getHex()
                 blending: THREE.AdditiveBlending,
                 transparent: true,
                 opacity: 0.1, // Зроблено ще більш ефірним для діагностики
@@ -793,7 +785,7 @@ class Archive extends Planet {
 class Forge extends Planet {
     constructor(config) {
         super(config); // Викликаємо батьківський конструктор
-        const material = new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 1.0 });
+        const material = new THREE.MeshBasicMaterial({ color: config.color.getHex(), transparent: true, opacity: 1.0 }); // ВИКОРИСТОВУЄМО getHex()
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh);
@@ -811,7 +803,7 @@ class Pact extends Planet {
         this.scene = scene;
         this.renderer = renderer;
         
-        const material = new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 1.0 });
+        const material = new THREE.MeshBasicMaterial({ color: config.color.getHex(), transparent: true, opacity: 1.0 }); // ВИКОРИСТОВУЄМО getHex()
         this.mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(this.size, 5), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh); 
@@ -831,7 +823,7 @@ class Credo extends Planet {
         super(config); // Викликаємо батьківський конструктор
         // ВИКОРИСТОВУЄМО ТИМЧАСОВИЙ BASIC МАТЕРІАЛ ДЛЯ ДІАГНОСТИКИ
         const material = new THREE.MeshBasicMaterial({ 
-            color: config.color, // ВИКОРИСТОВУЄМО КОЛІР З КОНФІГУ ДЛЯ ГАРАНТІЇ
+            color: config.color.getHex(), // ВИКОРИСТОВУЄМО КОЛІР З КОНФІГУ ТА getHex()
             transparent: true,
             opacity: 1.0 // Повна непрозорість для видимості
         });
@@ -841,7 +833,7 @@ class Credo extends Planet {
         
         // Атмосфера також MeshBasicMaterial для діагностики
         const atmosphereMaterial = new THREE.MeshBasicMaterial({
-            color: new THREE.Color(config.atmosphereColor || 0x4a90e2).add(new THREE.Color(0.2,0.2,0.2)),
+            color: (config.atmosphereColor || new THREE.Color(0x4a90e2)).getHex(), // ВИКОРИСТОВУЄМО getHex()
             transparent: true,
             opacity: 0.1, // Низька прозорість
             side: THREE.BackSide
