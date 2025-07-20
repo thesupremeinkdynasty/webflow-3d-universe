@@ -1,5 +1,6 @@
-// universe.js - Повна версія коду після КРОКУ 7.1 (Спрощене Кредо для діагностики, більш ефірний Архів)
-// Важливо: Ваш Gemini API ключ та всі інші налаштування збережено.
+// universe.js - Повна версія коду після КРОКУ 7.1 (Спрощене Кредо для діагностики)
+// Важливо: Ця версія Кредо тимчасово відображає лише зелену сферу для пошуку помилки.
+// Після виправлення помилки ми повернемося до її реалістичного шейдера.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -206,67 +207,17 @@ const Shaders = {
             gl_FragColor = vec4(finalColor, 1.0);
         }
     `,
-    credo: ` // Paradise Planet Shader (Improved Atmosphere and City Lights)
-        uniform sampler2D uDayTexture;
-        uniform sampler2D uNightTexture;
-        uniform sampler2D uCloudTexture;
-        uniform sampler2D uCityLightsTexture;
+    credo: ` // Paradise Planet Shader (SIMPLE GREEN FOR DIAGNOSTICS)
         uniform float uTime;
         uniform vec3 uSunDirection;
         varying vec2 vUv;
         varying vec3 vNormal;
-        varying vec3 vPosition; // Додано для точнішого розрахунку
-
+        // uDayTexture, uNightTexture, uCloudTexture, uCityLightsTexture not used in this diagnostic version
         void main() {
             vec3 normal = normalize(vNormal);
-            float NdotL = dot(normal, uSunDirection); // Косинус кута між нормаллю і світлом
-
-            // 1. Поверхня: День/Ніч/Вогні міст
-            vec3 dayColor = texture2D(uDayTexture, vUv).rgb;
-            vec3 nightColor = texture2D(uNightTexture, vUv).rgb;
-            
-            vec3 surfaceColor = mix(nightColor, dayColor, NdotL * 0.5 + 0.5); // Плавний перехід день-ніч
-
-            // Міські вогні, видно тільки вночі та пульсують
-            vec3 cityLights = texture2D(uCityLightsTexture, vUv).rgb;
-            float pulse_lights = sin(uTime * 5.0 + vUv.x * 20.0) * 0.1 + 0.9;
-            float nightBrightness = 1.0 - max(0.0, NdotL); // Більш яскраво вночі
-            surfaceColor += cityLights * pow(nightBrightness, 3.0) * pulse_lights * 2.0;
-
-
-            // 2. Хмари: Рух, тіні та інтеграція
-            vec2 cloudUv = vUv;
-            cloudUv.x += uTime * 0.005; // Повільний дрейф хмар
-            vec4 cloudSample = texture2D(uCloudTexture, cloudUv);
-            
-            // Тіні від хмар на поверхні
-            float shadowStrength = texture2D(uCloudTexture, cloudUv + vec2(0.01, 0.01)).r;
-            surfaceColor *= mix(vec3(0.7), vec3(1.0), shadowStrength); // Хмари відкидають тіні
-
-            vec3 finalSurfaceColor = mix(surfaceColor, cloudSample.rgb, cloudSample.a); // Накладаємо хмари на поверхню
-
-
-            // 3. Атмосфера: Розсіювання світла (Rayleigh scattering)
-            // Обчислюємо кут між напрямком світла та напрямком погляду
-            vec3 viewDir = normalize(cameraPosition - vPosition);
-            float cosAngle = dot(viewDir, uSunDirection);
-            
-            // Фактор для світанку/заходу сонця
-            float horizonFactor = 1.0 - pow(1.0 - max(0.0, dot(normal, viewDir)), 2.0); // Більш виражено на горизонті
-            
-            // Колір розсіювання (блакитний для денного неба, помаранчевий для світанку/заходу)
-            vec3 scatterColorDay = vec3(0.6, 0.8, 1.0); // Блакитний
-            vec3 scatterColorSunset = vec3(1.0, 0.6, 0.3); // Помаранчевий
-
-            // Визначаємо, де світанок/захід/ніч
-            float terminator = smoothstep(0.0, 0.1, NdotL); // Лінія переходу день-ніч
-            vec3 atmosphereScatter = mix(scatterColorSunset, scatterColorDay, terminator); // Колір атмосфери залежить від дня/ночі
-            
-            // Застосовуємо розсіювання, сильніше на горизонті
-            vec3 atmosphereFinal = atmosphereScatter * pow(horizonFactor, 1.5) * 0.8;
-            
-            // Додаємо атмосферу до фінального кольору
-            gl_FragColor = vec4(finalSurfaceColor + atmosphereFinal, 1.0);
+            float lightIntensity = max(0.0, dot(normal, uSunDirection));
+            vec3 finalColor = vec3(0.0, 0.8, 0.0) * lightIntensity + vec3(0.1); // Bright green color
+            gl_FragColor = vec4(finalColor, 1.0);
         }
     `,
     nebula: `
@@ -283,7 +234,7 @@ const Shaders = {
         }
     `,
     godRays: {
-        uniforms: { tDiffuse: { value: null }, uLightPosition: { value: new THREE.Vector2(0.5, 0.5) }, uExposure: { value: 0.25 }, uDecay: { value: 0.97 }, uDensity: { value: 0.96 }, uWeight: { value: 0.4 }, uClamp: { value: 1.0 }},
+        uniforms: { tDiffuse: { value: null }, uLightPosition: { value: new THREE.Vector2(0.5, 0.5) }, uExposure: { value: 0.35 }, uDecay: { value: 0.97 }, uDensity: { value: 0.96 }, uWeight: { value: 0.5 }, uClamp: { value: 1.0 }},
         vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
         fragmentShader: `
             varying vec2 vUv; 
@@ -456,17 +407,20 @@ class Universe {
 
     async createCelestialBodies() {
         const textureLoader = new THREE.TextureLoader();
+        // В console.log виведемо, що завантажується
+        console.log("Attempting to load Credo textures...");
         const textures = await this.loadCredoTextures(textureLoader);
+        console.log("Credo textures loaded:", textures);
 
         const planetsConfig = [
             // Планета "Архів" (Library): Гігантська планета з кільцями, що складаються не з каміння, а з мільйонів сяючих гліфів та символів.
-            { type: 'Archive', name: "Архів", description: "Тут мовчать слова, але говорять віки. Кожен гліф — це доля, кожна орбіта — урок. Прислухайся до тиші, і ти почуєш істину.", color: 0x4A90E2, size: 2.5, orbit: { a: 25, b: 24, speed: 0.08, axialSpeed: 0.2 }, hasRings: true, ringGlyphColor: 0xF0E6D2, ringInnerRadius: 3, ringOuterRadius: 4.5, ringDensity: 20000, prompt: "Напиши поетичну замальовку про тишу, що зберігає мудрість, про гліфи, що сяють знанням, і про безкінечний пошук істини у бібліотеці віків.", url: 'books' }, // 'books' - приклад URL сторінки каталогу книг
+            { type: 'Archive', name: "Архів", description: "Тут мовчать слова, але говорять віки. Кожен гліф — це доля, кожна орбіта — урок. Прислухайся до тиші, і ти почуєш істину.", color: 0x4A90E2, size: 2.5, orbit: { a: 25, b: 24, speed: 0.08, axialSpeed: 0.2 }, hasRings: true, ringGlyphColor: 0xF0E6D2, ringInnerRadius: 3, ringOuterRadius: 4.5, ringDensity: 20000, prompt: "Напиши поетичну замальовку про тишу, що зберігає мудрість, про гліфи, що сяють знанням, і про безкінечний пошук істини у бібліотеці віків.", url: 'books' }, 
             // Планета "Кузня" (AI-Generator): Вулканічна, геологічно активна планета, по поверхні якої течуть ріки розплавленого металу, символізуючи сиру творчу енергію.
-            { type: 'Forge', name: "Кузня", description: "Горнило творіння, де ідеї знаходять форму. Тут народжується нове у вогні натхнення.", size: 2.2, orbit: { a: 38, b: 39, speed: 0.06, axialSpeed: 0.1 }, prompt: "Напиши коротку, потужну притчу або вірш про біль творення, красу нової форми, що народжується з хаосу, і про безперервне полум'я натхнення.", url: 'ai-generator' }, // 'ai-generator' - приклад URL сторінки AI генератора
+            { type: 'Forge', name: "Кузня", description: "Горнило творіння, де ідеї знаходять форму. Тут народжується нове у вогні натхнення.", size: 2.2, orbit: { a: 38, b: 39, speed: 0.06, axialSpeed: 0.1 }, prompt: "Напиши коротку, потужну притчу або вірш про біль творення, красу нової форми, що народжується з хаосу, і про безперервне полум'я натхнення.", url: 'ai-generator' }, 
             // Планета "Пакт" (Pricing): Кришталева, ідеально огранена планета, що переливається всіма кольорами, символізуючи прозорість та цінність.
-            { type: 'Pact', name: "Пакт", description: "Кристал довіри, що сяє прозорістю. Його грані відображають чистоту намірів.", size: 2.0, orbit: { a: 55, b: 55, speed: 0.04, axialSpeed: 0.3 }, prompt: "Створи коротку, елегантну філософську думку або вірш про прозорість, довіру, цінність даного слова та про те, як чистота намірів відбиває світло істини.", url: 'pricing-tariffs' }, // 'pricing-tarms' - приклад URL сторінки з тарифами
+            { type: 'Pact', name: "Пакт", description: "Кристал довіри, що сяє прозорістю. Його грані відображають чистоту намірів.", size: 2.0, orbit: { a: 55, b: 55, speed: 0.04, axialSpeed: 0.3 }, prompt: "Створи коротку, елегантну філософську думку або вірш про прозорість, довіру, цінність даного слова та про те, як чистота намірів відбиває світло істини.", url: 'pricing-tariffs' }, 
             // Планета "Кредо" (About Us): Землеподібна планета з океанами та континентами, що символізує людський аспект проєкту.
-            { type: 'Credo', name: "Кредо", description: "Сад буття, що плекає красу зв'язку. Тут кожна душа знаходить свій дім.", size: 2.4, orbit: { a: 68, b: 65, speed: 0.03, axialSpeed: 0.25 }, textures, prompt: "Напиши теплий, надихаючий вірш або коротку замальовку про єдність, красу зв'язків між душами, відчуття дому та гармонію, що народжується у спільноті.", url: 'about-us' }, // 'about-us' - приклад URL сторінки "Про нас"
+            { type: 'Credo', name: "Кредо", description: "Сад буття, що плекає красу зв'язку. Тут кожна душа знаходить свій дім.", size: 2.4, orbit: { a: 68, b: 65, speed: 0.03, axialSpeed: 0.25 }, textures, prompt: "Напиши теплий, надихаючий вірш або коротку замальовку про єдність, красу зв'язків між душами, відчуття дому та гармонію, що народжується у спільноті.", url: 'about-us' }, 
             
             // Приклади інших планет, які ще не мають спеціалізованих класів, але можуть бути додані
             { type: 'Planet', name: "Гільдія", description: "Світ співпраці та об'єднання. Тут народжуються ідеї, які єднають душі.", color: 0x8A2BE2, size: 2.0, orbit: { a: 80, b: 78, speed: 0.02, axialSpeed: 0.15 }, isDouble: true, prompt: "Розкрийте сутність Гільдії: як два світи, що обертаються навколо спільного центру, символізують силу єдності та взаємодоповнення.", url: 'community' },
@@ -493,10 +447,17 @@ class Universe {
 
     async loadCredoTextures(loader) {
         // !!! ЦІ ПОСИЛАННЯ НА ТЕКСТУРИ КРЕДО ВЖЕ ОНОВЛЕНО ВІДПОВІДНО ДО ВАШИХ НАДАНЬ !!!
+        console.log("Loading Credo day texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png');
         const dayTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png'); // Нова, детальна денна текстура
+
+        console.log("Loading Credo night texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c024ead466abd5313cd10_Copilot_20250719_221536.png');
         const nightTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c024ead466abd5313cd10_Copilot_20250719_221536.png');
+        
+        console.log("Loading Credo cloud texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png');
         const cloudTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png'); // Густі білі хмари
-        const cityLightsTexture = await loader.loadAsync('https://www.solarsystemscope.com/textures/download/2k_earth_lights.jpg'); // Додано для Кредо (якщо не було)
+
+        console.log("Loading Credo city lights texture:", 'https://www.solarsystemscope.com/textures/download/2k_earth_lights.jpg');
+        const cityLightsTexture = await loader.loadAsync('https://www.solarsystemscope.com/textures/download/2k_earth_lights.jpg'); 
         
         [dayTexture, nightTexture, cloudTexture, cityLightsTexture].forEach(t => {
             t.wrapS = THREE.RepeatWrapping;
