@@ -1,12 +1,12 @@
-// universe.js - Повна версія коду після КРОКУ 7.4 (Кольори планет як THREE.Color об'єкти)
-// Ця версія має остаточно усунути помилку "color undefineable".
+// universe.js - Повна версія коду після КРОКУ 7.5 (Рефакторинг конструкторів, прямі кольори)
+// Ця версія має остаточно усунути помилку "color undefineable" та візуальні артефакти.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } = 'three/addons/postprocessing/RenderPass.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { UnrealBloomPass } = 'three/addons/postprocessing/UnrealBloomPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import gsap from 'gsap';
 
 // =============================================================================
@@ -214,13 +214,13 @@ class Universe {
         console.log("Credo textures loaded:", textures);
 
         const planetsConfig = [
-            { type: 'Archive', name: "Архів", description: "Тут мовчать слова, але говорять віки. Кожен гліф — це доля, кожна орбіта — урок. Прислухайся до тиші, і ти почуєш істину.", color: 0x4A90E2, size: 2.5, orbit: { a: 25, b: 24, speed: 0.08, axialSpeed: 0.2 }, hasRings: true, ringGlyphColor: 0xF0E6D2, ringInnerRadius: 3, ringOuterRadius: 4.5, ringDensity: 20000, prompt: "Напиши поетичну замальовку про тишу, що зберігає мудрість, про гліфи, що сяють знанням, і про безкінечний пошук істини у бібліотеці віків.", url: 'books' }, 
-            { type: 'Forge', name: "Кузня", description: "Горнило творіння, де ідеї знаходять форму. Тут народжується нове у вогні натхнення.", color: 0xD0021B, size: 2.2, orbit: { a: 38, b: 39, speed: 0.06, axialSpeed: 0.1 }, prompt: "Напиши коротку, потужну притчу або вірш про біль творення, красу нової форми, що народжується з хаосу, і про безперервне полум'я натхнення.", url: 'ai-generator' }, 
-            { type: 'Pact', name: "Пакт", description: "Кристал довіри, що сяє прозорістю. Його грані відображають чистоту намірів.", color: 0xBD10E0, size: 2.0, orbit: { a: 55, b: 55, speed: 0.04, axialSpeed: 0.3 }, prompt: "Створи коротку, елегантну філософську думку або вірш про прозорість, довіру, цінність даного слова та про те, як чистота намірів відбиває світло істини.", url: 'pricing-tariffs' }, 
-            { type: 'Credo', name: "Кредо", description: "Сад буття, що плекає красу зв'язку. Тут кожна душа знаходить свій дім.", color: 0x2E8B57, size: 2.4, orbit: { a: 68, b: 65, speed: 0.03, axialSpeed: 0.25 }, textures, prompt: "Напиши теплий, надихаючий вірш або коротку замальовку про єдність, красу зв'язків між душами, відчуття дому та гармонію, що народжується у спільноті.", url: 'about-us' }, 
+            { type: 'Archive', name: "Архів", description: "Тут мовчать слова, але говорять віки. Кожен гліф — це доля, кожна орбіта — урок. Прислухайся до тиші, і ти почуєш істину.", color: new THREE.Color(0x4A90E2), size: 2.5, orbit: { a: 25, b: 24, speed: 0.08, axialSpeed: 0.2 }, hasRings: true, ringGlyphColor: new THREE.Color(0xF0E6D2), ringInnerRadius: 3, ringOuterRadius: 4.5, ringDensity: 20000, prompt: "Напиши поетичну замальовку про тишу, що зберігає мудрість, про гліфи, що сяють знанням, і про безкінечний пошук істини у бібліотеці віків.", url: 'books' }, 
+            { type: 'Forge', name: "Кузня", description: "Горнило творіння, де ідеї знаходять форму. Тут народжується нове у вогні натхнення.", color: new THREE.Color(0xD0021B), size: 2.2, orbit: { a: 38, b: 39, speed: 0.06, axialSpeed: 0.1 }, prompt: "Напиши коротку, потужну притчу або вірш про біль творення, красу нової форми, що народжується з хаосу, і про безперервне полум'я натхнення.", url: 'ai-generator' }, 
+            { type: 'Pact', name: "Пакт", description: "Кристал довіри, що сяє прозорістю. Його грані відображають чистоту намірів.", color: new THREE.Color(0xBD10E0), size: 2.0, orbit: { a: 55, b: 55, speed: 0.04, axialSpeed: 0.3 }, prompt: "Створи коротку, елегантну філософську думку або вірш про прозорість, довіру, цінність даного слова та про те, як чистота намірів відбиває світло істини.", url: 'pricing-tariffs' }, 
+            { type: 'Credo', name: "Кредо", description: "Сад буття, що плекає красу зв'язку. Тут кожна душа знаходить свій дім.", color: new THREE.Color(0x2E8B57), size: 2.4, orbit: { a: 68, b: 65, speed: 0.03, axialSpeed: 0.25 }, textures, prompt: "Напиши теплий, надихаючий вірш або коротку замальовку про єдність, красу зв'язків між душами, відчуття дому та гармонію, що народжується у спільноті.", url: 'about-us' }, 
             
-            { type: 'Planet', name: "Гільдія", description: "Світ співпраці та об'єднання. Тут народжуються ідеї, які єднають душі.", color: 0x8A2BE2, size: 2.0, orbit: { a: 80, b: 78, speed: 0.02, axialSpeed: 0.15 }, isDouble: true, prompt: "Розкрийте сутність Гільдії: як два світи, що обертаються навколо спільного центру, символізують силу єдності та взаємодоповнення.", url: 'community' },
-            { type: 'Planet', name: "Інсайти", description: "Газовий гігант, у вихорах якого приховані глибокі відкриття та несподівані думки.", color: 0xFF4500, size: 3.0, orbit: { a: 95, b: 90, speed: 0.015, axialSpeed: 0.08 }, hasGreatSpot: true, greatSpotColor: 0x8B0000, prompt: "Створи вірш або прозу про раптові спалахи інсайтів, що з'являються з хаосу мислення, як Велика Червона Пляма на газовому гіганті, символізуючи потужність інтелекту.", url: 'insights' }
+            { type: 'Planet', name: "Гільдія", description: "Світ співпраці та об'єднання. Тут народжуються ідеї, які єднають душі.", color: new THREE.Color(0x8A2BE2), size: 2.0, orbit: { a: 80, b: 78, speed: 0.02, axialSpeed: 0.15 }, isDouble: true, prompt: "Розкрийте сутність Гільдії: як два світи, що обертаються навколо спільного центру, символізують силу єдності та взаємодоповнення.", url: 'community' },
+            { type: 'Planet', name: "Інсайти", description: "Газовий гігант, у вихорах якого приховані глибокі відкриття та несподівані думки.", color: new THREE.Color(0xFF4500), size: 3.0, orbit: { a: 95, b: 90, speed: 0.015, axialSpeed: 0.08 }, hasGreatSpot: true, greatSpotColor: new THREE.Color(0x8B0000), prompt: "Створи вірш або прозу про раптові спалахи інсайтів, що з'являються з хаосу мислення, як Велика Червона Пляма на газовому гіганті, символізуючи потужність інтелекту.", url: 'insights' }
         ];
 
         const source = new Sun({ name: "Джерело", description: "Джерело всього світла і життя. Споглядай Його велич.", size: 10 });
@@ -234,7 +234,13 @@ class Universe {
                 case 'Forge': planet = new Forge(config); break;
                 case 'Pact': planet = new Pact(config, this.renderer, this.scene); break;
                 case 'Credo': planet = new Credo(config); break;
-                default: planet = new Planet(config); 
+                default: planet = new Planet(config); // Використовуємо базовий Planet для інших типів поки що
+                    // *** НОВА ЧАСТИНА: Явно створюємо mesh для базових Planet
+                    const material = new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 1.0 });
+                    planet.mesh = new THREE.Mesh(new THREE.SphereGeometry(planet.size, 64, 64), material);
+                    planet.mesh.userData.celestialBody = planet;
+                    planet.group.add(planet.mesh);
+                    // *** КІНЕЦЬ НОВОЇ ЧАСТИНИ
             }
             this.celestialBodies.push(planet);
             this.scene.add(planet.group);
@@ -689,9 +695,16 @@ class Planet extends CelestialBody {
         this.orbit = config.orbit;
         this.orbit.offset = Math.random() * Math.PI * 2; // Випадковий початковий кут для різноманітності
 
-        // ***ВАЖЛИВО: НОВИЙ ПАТТЕРН КОНСТРУКТОРА***
-        // Базовий mesh не створюється тут, а створюється в спеціалізованих класах або в default-кейсі нижче.
-        this.mesh = null; // Забезпечуємо, що mesh спочатку null
+        // ***ВАЖЛИВО: ТЕПЕР МЕШ СТВОРЮЄТЬСЯ ТУТ ЛИШЕ ЯКЩО НЕМАЄ СПЕЦІАЛІЗОВАНОГО МАТЕРІАЛУ В КОНФІГУ***
+        // Інакше він буде створений у спеціалізованих класах
+        if (!config.material) { // Якщо спец. матеріал не передано з конфігу (як для Гільдії/Інсайтів)
+            const material = new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 1.0 });
+            this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
+            this.mesh.userData.celestialBody = this;
+            this.group.add(this.mesh);
+        } else {
+            this.mesh = null; // Буде встановлено в спеціалізованому конструкторі
+        }
 
         // Атмосфера (якщо потрібна)
         if (config.hasAtmosphere) {
