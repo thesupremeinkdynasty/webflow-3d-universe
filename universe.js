@@ -1,16 +1,17 @@
-// universe.js - Повна версія коду після КРОКУ 7.6 (Експліцитна діагностика кольорів та фіксований колір)
+// universe.js - Повна версія коду після КРОКУ 7.6 (Фіксований зелений колір за інструкціями консолі)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { RenderPass } = 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { UnrealBloomPass } = 'three/addons/postprocessing/UnrealBloomPass.js';
 import gsap from 'gsap';
 
 // =============================================================================
 // --- GLSL: Душа наших світів, написана мовою світла ---
 // =============================================================================
+// Усі GLSL шейдери залишені, але планети поки використовують MeshBasicMaterial для діагностики.
 const Shaders = {
     noise: `
         vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -234,7 +235,7 @@ class Universe {
                 case 'Credo': planet = new Credo(config); break;
                 default: planet = new Planet(config); 
                     // *** НОВА ЧАСТИНА: Явно створюємо mesh для базових Planet
-                    const material = new THREE.MeshBasicMaterial({ color: config.color.getHex(), transparent: true, opacity: 1.0 }); // ВИКОРИСТОВУЄМО getHex()
+                    const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x00FF00), transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР
                     planet.mesh = new THREE.Mesh(new THREE.SphereGeometry(planet.size, 64, 64), material);
                     planet.mesh.userData.celestialBody = planet;
                     planet.group.add(planet.mesh);
@@ -822,7 +823,7 @@ class Credo extends Planet {
         super(config); // Викликаємо батьківський конструктор
         // ВИКОРИСТОВУЄМО ТИМЧАСОВИЙ BASIC МАТЕРІАЛ ДЛЯ ДІАГНОСТИКИ
         const material = new THREE.MeshBasicMaterial({ 
-            color: 0x00FF00, // ФІКСОВАНИЙ КОЛІР
+            color: new THREE.Color(0x00FF00), // ФІКСОВАНИЙ КОЛІР (вже був у config, але тут використовуємо для гарантії)
             transparent: true,
             opacity: 1.0 // Повна непрозорість для видимості
         });
@@ -832,7 +833,7 @@ class Credo extends Planet {
         
         // Атмосфера також MeshBasicMaterial для діагностики
         const atmosphereMaterial = new THREE.MeshBasicMaterial({
-            color: 0x00FF00, // ФІКСОВАНИЙ КОЛІР
+            color: new THREE.Color(0x00FF00), // ФІКСОВАНИЙ КОЛІР
             transparent: true,
             opacity: 0.1, // Низька прозорість
             side: THREE.BackSide
