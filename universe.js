@@ -1,4 +1,4 @@
-// universe.js - Повна версія коду після КРОКУ 8.1 (Максимальний реалізм планет, відновлення шейдерів)
+// universe.js - Повна версія коду після КРОКУ 8.2 (Повне відновлення реалізму планет)
 // Цей код є втіленням вашого задуму без компромісів.
 
 import * as THREE from 'three';
@@ -363,8 +363,8 @@ class Universe {
         const renderer = new THREE.WebGLRenderer({ 
             antialias: true, 
             alpha: true, // Вмикаємо альфа-канал для діагностики
-            // powerPreference: "high-performance", // Вимкнено для діагностики
-            // logarithmicDepthBuffer: true // Тимчасово вимкнено для діагностики
+            powerPreference: "high-performance", // Повертаємо high-performance
+            logarithmicDepthBuffer: true // Повертаємо logarithmicDepthBuffer
         });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -388,17 +388,17 @@ class Universe {
 
     createComposer() {
         const renderPass = new RenderPass(this.scene, this.cameraManager.camera);
-        // Тимчасово вимкнено Bloom та GodRays для чистоти діагностики
-        // const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.7); 
-        // this.godRaysPass = new ShaderPass(Shaders.godRays);
-        // this.godRaysPass.material.uniforms.uExposure.value = 0.35;
-        // this.godRaysPass.material.uniforms.uWeight.value = 0.5;   
-        // this.godRaysPass.needsSwap = true;
+        // Повторно увімкнено Bloom та GodRays
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.7); 
+        this.godRaysPass = new ShaderPass(Shaders.godRays);
+        this.godRaysPass.material.uniforms.uExposure.value = 0.35;
+        this.godRaysPass.material.uniforms.uWeight.value = 0.5;   
+        this.godRaysPass.needsSwap = true;
         
         const composer = new EffectComposer(this.renderer);
         composer.addPass(renderPass);
-        // composer.addPass(this.godRaysPass); // Вимкнено
-        // composer.addPass(bloomPass); // Вимкнено
+        composer.addPass(this.godRaysPass); // Увімкнено
+        composer.addPass(bloomPass); // Увімкнено
         return composer;
     }
 
@@ -500,13 +500,13 @@ class Universe {
                 case 'Forge': planet = new Forge(config); break;
                 case 'Pact': planet = new Pact(config, this.renderer, this.scene); break;
                 case 'Credo': planet = new Credo(config); break;
-                default: planet = new Planet(config); 
-                    // *** НОВА ЧАСТИНА: Явно створюємо mesh для базових Planet
-                    const material = new THREE.MeshBasicMaterial({ color: 0xFF0000, transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ КОЛІР за інструкціями консолі (ЧЕРВОНИЙ)
+                default: 
+                    // Для базового класу Planet (Гільдія, Інсайти)
+                    planet = new Planet(config); 
+                    const material = new THREE.MeshBasicMaterial({ color: config.color, transparent: true, opacity: 1.0 });
                     planet.mesh = new THREE.Mesh(new THREE.SphereGeometry(planet.size, 64, 64), material);
                     planet.mesh.userData.celestialBody = planet;
                     planet.group.add(planet.mesh);
-                    // *** КІНЕЦЬ НОВОЇ ЧАСТИНИ
             }
             this.celestialBodies.push(planet);
             this.scene.add(planet.group);
