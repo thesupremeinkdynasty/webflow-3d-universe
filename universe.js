@@ -1,5 +1,5 @@
-// universe.js - Повна версія коду після КРОКУ 9.1 (Виправлення CORS, базовий рендерер)
-// Цей код має усунути помилки завантаження текстур та підготувати до повного реалізму.
+// universe.js - Повна версія коду після КРОКУ 9.1 (Інтеграція Чумацького Шляху та фінальний реалізм)
+// Цей код є втіленням вашого задуму без компромісів.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -433,6 +433,30 @@ class Universe {
     }
 
     createStarfield() {
+        // Завантажуємо текстуру Чумацького Шляху
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load(
+            'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687d3cc795859f0d3a3b488f_8k_stars_milky_way.jpg',
+            (texture) => {
+                const geometry = new THREE.SphereGeometry(2000, 64, 64); // Велика сфера для фону
+                const material = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    side: THREE.BackSide // Рендеримо з внутрішньої сторони
+                });
+                const starfieldSphere = new THREE.Mesh(geometry, material);
+                this.scene.add(starfieldSphere);
+            },
+            undefined, // onProgress callback
+            (error) => {
+                console.error('Error loading starfield texture:', error);
+                // Fallback до процедурного зоряного поля, якщо текстура не завантажилася
+                this.createProceduralStarfield();
+            }
+        );
+    }
+
+    // Додатковий метод для процедурного зоряного поля (як fallback)
+    createProceduralStarfield() {
         const vertices = [];
         for (let i = 0; i < 15000; i++) {
             vertices.push(THREE.MathUtils.randFloatSpread(3000), THREE.MathUtils.randFloatSpread(3000), THREE.MathUtils.randFloatSpread(3000));
