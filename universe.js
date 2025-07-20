@@ -1,4 +1,4 @@
-// universe.js - Повна версія коду після КРОКУ 8.2 (Повне відновлення реалізму планет)
+// universe.js - Повна версія коду після КРОКУ 8.1 (Максимальний реалізм галактики)
 // Цей код є втіленням вашого задуму без компромісів.
 
 import * as THREE from 'three';
@@ -19,24 +19,41 @@ const Shaders = {
         vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
         vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
         float snoise(vec3 v) {
-            const vec2 C = vec2(1.0/6.0, 1.0/3.0); const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-            vec3 i  = floor(v + dot(v, C.yyy)); vec3 x0 = v - i + dot(i, C.xxx);
-            vec3 g = step(x0.yzx, x0.xyz); vec3 l = 1.0 - g;
-            vec3 i1 = min(g.xyz, l.zxy); vec3 i2 = max(g.xyz, l.zxy);
-            vec3 x1 = x0 - i1 + C.xxx; vec3 x2 = x0 - i2 + C.yyy; vec3 x3 = x0 - D.yyy;
+            const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+            const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+            vec3 i  = floor(v + dot(v, C.yyy));
+            vec3 x0 = v - i + dot(i, C.xxx);
+            vec3 g = step(x0.yzx, x0.xyz);
+            vec3 l = 1.0 - g;
+            vec3 i1 = min(g.xyz, l.zxy);
+            vec3 i2 = max(g.xyz, l.zxy);
+            vec3 x1 = x0 - i1 + C.xxx;
+            vec3 x2 = x0 - i2 + C.yyy;
+            vec3 x3 = x0 - D.yyy;
             i = mod289(i);
-            vec4 p = permute(permute(permute( i.z + vec4(0.0, i1.z, i2.z, 1.0)) + i.y + vec4(0.0, i1.y, i2.y, 1.0)) + i.x + vec4(0.0, i1.x, i2.x, 1.0));
-            float n_ = 0.142857142857; vec3 ns = n_ * D.wyz - D.xzx;
+            vec4 p = permute(permute(permute(
+                i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+            float n_ = 0.142857142857;
+            vec3 ns = n_ * D.wyz - D.xzx;
             vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
-            vec4 x_ = floor(j * ns.z); vec4 y_ = floor(j - 7.0 * x_);
-            vec4 x = x_ * ns.x + ns.yyyy; vec4 y = y_ * ns.x + ns.yyyy;
+            vec4 x_ = floor(j * ns.z);
+            vec4 y_ = floor(j - 7.0 * x_);
+            vec4 x = x_ * ns.x + ns.yyyy;
+            vec4 y = y_ * ns.x + ns.yyyy;
             vec4 h = 1.0 - abs(x) - abs(y);
-            vec4 b0 = vec4(x.xy, y.xy); vec4 b1 = vec4(x.zw, y.zw);
-            vec4 s0 = floor(b0)*2.0 + 1.0; vec4 s1 = floor(b1)*2.0 + 1.0;
+            vec4 b0 = vec4(x.xy, y.xy);
+            vec4 b1 = vec4(x.zw, y.zw);
+            vec4 s0 = floor(b0)*2.0 + 1.0;
+            vec4 s1 = floor(b1)*2.0 + 1.0;
             vec4 sh = -step(h, vec4(0.0));
-            vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy; vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
-            vec3 p0 = vec3(a0.xy,h.x); vec3 p1 = vec3(a0.zw,h.y);
-            vec3 p2 = vec3(a1.xy,h.z); vec3 p3 = vec3(a1.zw,h.w);
+            vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+            vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+            vec3 p0 = vec3(a0.xy,h.x);
+            vec3 p1 = vec3(a0.zw,h.y);
+            vec3 p2 = vec3(a1.xy,h.z);
+            vec3 p3 = vec3(a1.zw,h.w);
             vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
             p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
             vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
@@ -44,8 +61,13 @@ const Shaders = {
             return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
         }
         float fbm(vec3 p, int octaves) {
-            float f = 0.0; float a = 0.5;
-            for (int i = 0; i < octaves; i++) { f += a * snoise(p); p *= 2.0; a *= 0.5; }
+            float f = 0.0;
+            float a = 0.5;
+            for (int i = 0; i < octaves; i++) {
+                f += a * snoise(p);
+                p *= 2.0;
+                a *= 0.5;
+            }
             return f;
         }
     `,
@@ -376,9 +398,9 @@ class Universe {
         const gl = renderer.getContext();
         if (gl) {
             console.log("WebGL Context obtained successfully:", gl);
-            console.log("WebGL Vendor:", gl.getParameter(gl.VENDOR));
-            console.log("WebGL Renderer:", gl.getParameter(gl.RENDERER));
-            console.log("WebGL Version:", gl.getParameter(gl.VERSION));
+            console.log("WebGL Vendor:", gl.getParameter(gl.E.VENDOR));
+            console.log("WebGL Renderer:", gl.getParameter(gl.E.RENDERER));
+            console.log("WebGL Version:", gl.getParameter(gl.E.VERSION));
         } else {
             console.error("Failed to obtain WebGL Context!");
         }
@@ -966,11 +988,29 @@ class Planet extends CelestialBody {
 
         // Атмосфера (якщо потрібна)
         if (config.hasAtmosphere) {
-            const atmosphereMaterial = new THREE.MeshBasicMaterial({
-                color: 0xFF0000, // ФІКСОВАНИЙ ЧЕРВОНИЙ КОЛІР за інструкціями консолі
-                transparent: true,
-                opacity: 0.1, // Низька прозорість атмосфери
-                side: THREE.BackSide
+            const atmosphereMaterial = new THREE.ShaderMaterial({ // Повертаємо ShaderMaterial для атмосфери
+                uniforms: {
+                    uSunDirection: { value: new THREE.Vector3(1, 0, 0) },
+                    uAtmosphereColor: { value: config.color } // Використовуємо колір планети для атмосфери
+                },
+                vertexShader: Shaders.sharedVertex, 
+                fragmentShader: Shaders.noise + `
+                    uniform vec3 uSunDirection;
+                    uniform vec3 uAtmosphereColor;
+                    varying vec3 vNormal;
+                    varying vec3 vPosition;
+                    void main() {
+                        vec3 normal = normalize(vNormal);
+                        float intensity = pow(0.6 - dot(normal, vec3(0.0, 0.0, 1.0)), 2.0);
+                        float fresnel = dot(normalize(uSunDirection), normal);
+                        fresnel = pow(1.0 - fresnel, 4.0);
+                        float finalIntensity = intensity * fresnel;
+                        gl_FragColor = vec4(uAtmosphereColor, 1.0) * finalIntensity;
+                    }
+                `,
+                blending: THREE.AdditiveBlending,
+                side: THREE.BackSide,
+                transparent: true
             });
             const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(this.size * 1.1, 64, 64), atmosphereMaterial);
             this.group.add(atmosphere);
@@ -979,7 +1019,7 @@ class Planet extends CelestialBody {
         // Кільця (якщо потрібні, не для Архіва)
         if (config.hasRings && config.type !== 'Archive') { 
             const ringGeometry = new THREE.TorusGeometry(this.size * 1.5, 0.2, 16, 100);
-            const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }); // ФІКСОВАНИЙ ЧЕРВОНИЙ КОЛІР за інструкціями консолі
+            const ringMaterial = new THREE.MeshBasicMaterial({ color: config.color, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }); // Використовуємо колір з конфігу
             const rings = new THREE.Mesh(ringGeometry, ringMaterial);
             rings.rotation.x = Math.PI / 2; // Орієнтуємо кільця горизонтально
             this.group.add(rings);
@@ -991,8 +1031,27 @@ class Planet extends CelestialBody {
         this.group.position.z = Math.sin(angle) * this.orbit.b;
         if (this.mesh) {
             this.mesh.rotation.y += this.orbit.axialSpeed * delta;
-            // У цьому діагностичному режимі ми не оновлюємо уніформи шейдерів,
-            // оскільки використовуємо MeshBasicMaterial.
+            // Оновлюємо уніформи шейдерів
+            if (this.mesh.material.uniforms && this.mesh.material.uniforms.uTime) {
+                this.mesh.material.uniforms.uTime.value = elapsedTime;
+            }
+            if (this.mesh.material.uniforms && this.mesh.material.uniforms.uSunDirection && this.group.parent) {
+                const sunBody = this.group.parent.children.find(c => c.userData.celestialBody && c.userData.celestialBody.isSource);
+                if (sunBody) {
+                    const sunPosition = new THREE.Vector3();
+                    sunBody.getWorldPosition(sunPosition);
+                    this.mesh.material.uniforms.uSunDirection.value.copy(sunPosition).normalize();
+                }
+            }
+        }
+        // Оновлення атмосфери
+        if (this.group.children[1] && this.group.children[1].material.uniforms && this.group.children[1].material.uniforms.uSunDirection && this.group.parent) {
+            const sunBody = this.group.parent.children.find(c => c.userData.celestialBody && c.userData.celestialBody.isSource);
+            if (sunBody) {
+                const sunPosition = new THREE.Vector3();
+                sunBody.getWorldPosition(sunPosition);
+                this.group.children[1].material.uniforms.uSunDirection.value.copy(sunPosition).normalize();
+            }
         }
     }
 }
@@ -1000,10 +1059,18 @@ class Planet extends CelestialBody {
 // Спеціалізовані класи для планет
 class Archive extends Planet {
     constructor(config) {
-        super(config); // Викликаємо батьківський конструктор
+        super(config); // Вызываем родительский конструктор
         
-        // Custom material for the geode effect - використовуємо базовий для діагностики
-        const material = new THREE.MeshBasicMaterial({ color: 0xFF0000, transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ ЧЕРВОНИЙ КОЛІР за інструкціями консолі
+        // Custom material for the geode effect - теперь используем наш шейдер
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uPulse: { value: 0 },
+                uColor: { value: config.color }
+            },
+            vertexShader: Shaders.sharedVertex,
+            fragmentShader: Shaders.noise + Shaders.archive
+        });
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh); 
@@ -1012,10 +1079,10 @@ class Archive extends Planet {
         if (config.hasRings) {
             const glyphGeometry = new THREE.PlaneGeometry(0.1, 0.1); 
             const glyphMaterial = new THREE.MeshBasicMaterial({ 
-                color: 0xFF0000, // ФІКСОВАНИЙ ЧЕРВОНИЙ КОЛІР за інструкціями консолі
+                color: config.ringGlyphColor, // Используем цвет из конфига
                 blending: THREE.AdditiveBlending,
                 transparent: true,
-                opacity: 0.1, // Зроблено ще більш ефірним для діагностики
+                opacity: 0.1, // Зроблено ще більш ефірним
                 side: THREE.DoubleSide 
             });
             
@@ -1041,7 +1108,7 @@ class Archive extends Planet {
     }
     update(elapsedTime, delta) {
         super.update(elapsedTime, delta); 
-        // У цьому діагностичному режимі ми не оновлюємо уніформи шейдерів.
+        if (this.mesh.material.uniforms.uTime) this.mesh.material.uniforms.uTime.value = elapsedTime;
         if (this.glyphInstances) {
             this.glyphInstances.rotation.y += delta * 0.05; 
         }
@@ -1050,26 +1117,37 @@ class Archive extends Planet {
     
 class Forge extends Planet {
     constructor(config) {
-        super(config); // Викликаємо батьківський конструктор
-        const material = new THREE.MeshBasicMaterial({ color: 0xFF0000, transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ ЧЕРВОНИЙ КОЛІР за інструкціями консолі
+        super(config); // Вызываем родительский конструктор
+        const material = new THREE.ShaderMaterial({ // Возвращаем ShaderMaterial для Forge
+            uniforms: { uTime: { value: 0 }, uPulse: { value: 0 } },
+            vertexShader: Shaders.sharedVertex,
+            fragmentShader: Shaders.noise + Shaders.forge
+        });
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh);
     }
     update(elapsedTime, delta) {
         super.update(elapsedTime, delta);
-        // У цьому діагностичному режимі ми не оновлюємо уніформи шейдерів.
+        this.mesh.material.uniforms.uTime.value = elapsedTime;
     }
 }
 
 class Pact extends Planet {
     constructor(config, renderer, scene) {
-        super(config); // Викликаємо батьківський конструктор
+        super(config); // Вызываем родительский конструктор
         this.cubeCamera = new THREE.CubeCamera(1, 2000, new THREE.WebGLCubeRenderTarget(256));
         this.scene = scene;
         this.renderer = renderer;
         
-        const material = new THREE.MeshBasicMaterial({ color: 0xFF0000, transparent: true, opacity: 1.0 }); // ФІКСОВАНИЙ ЧЕРВОНИЙ КОЛІР за інструкціями консолі
+        const material = new THREE.ShaderMaterial({ // Возвращаем ShaderMaterial для Pact
+            uniforms: {
+                uTime: { value: 0 },
+                uEnvMap: { value: this.cubeCamera.renderTarget.texture }
+            },
+            vertexShader: Shaders.sharedVertex,
+            fragmentShader: Shaders.pact
+        });
         this.mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(this.size, 5), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh); 
@@ -1080,36 +1158,74 @@ class Pact extends Planet {
         this.cubeCamera.position.copy(this.group.position);
         this.cubeCamera.update(this.renderer, this.scene);
         this.mesh.visible = true; 
-        // У цьому діагностичному режимі ми не оновлюємо уніформи шейдерів.
+        this.mesh.material.uniforms.uTime.value = elapsedTime; // Обновляем время для шейдера
     }
 }
 
 class Credo extends Planet {
     constructor(config) {
-        super(config); // Викликаємо батьківський конструктор
-        // ВИКОРИСТОВУЄМО ТИМЧАСОВИЙ BASIC МАТЕРІАЛ ДЛЯ ДІАГНОСТИКИ
-        const material = new THREE.MeshBasicMaterial({ 
-            color: 0xFF0000, // ФІКСОВАНИЙ ЧЕРВОНИЙ КОЛІР за інструкціями консолі
-            transparent: true,
-            opacity: 1.0 // Повна непрозорість для видимості
+        super(config); // Вызываем родительский конструктор
+        const material = new THREE.ShaderMaterial({ // Возвращаем ShaderMaterial для Credo
+            uniforms: {
+                uTime: { value: 0 },
+                uDayTexture: { value: config.textures.day },
+                uNightTexture: { value: config.textures.night },
+                uCloudTexture: { value: config.textures.clouds },
+                uCityLightsTexture: { value: config.textures.cityLights },
+                uSunDirection: { value: new THREE.Vector3(1, 0, 0) }
+            },
+            vertexShader: Shaders.sharedVertex,
+            fragmentShader: Shaders.credo
         });
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh); 
         
-        // Атмосфера також MeshBasicMaterial для діагностики
-        const atmosphereMaterial = new THREE.MeshBasicMaterial({
-            color: 0xFF0000, // ФІКСОВАНИЙ ЧЕРВОНИЙ КОЛІР за інструкціями консолі
-            transparent: true,
-            opacity: 0.1, // Низька прозорість
-            side: THREE.BackSide
+        // Атмосфера
+        const atmosphereMaterial = new THREE.ShaderMaterial({ // Возвращаем ShaderMaterial для атмосферы
+            uniforms: {
+                uSunDirection: { value: new THREE.Vector3(1, 0, 0) },
+                uAtmosphereColor: { value: config.color } // Используем цвет планеты для атмосферы
+            },
+            vertexShader: Shaders.sharedVertex, 
+            fragmentShader: Shaders.noise + `
+                uniform vec3 uSunDirection;
+                uniform vec3 uAtmosphereColor;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                void main() {
+                    vec3 normal = normalize(vNormal);
+                    float intensity = pow(0.6 - dot(normal, vec3(0.0, 0.0, 1.0)), 2.0);
+                    float fresnel = dot(normalize(uSunDirection), normal);
+                    fresnel = pow(1.0 - fresnel, 4.0);
+                    float finalIntensity = intensity * fresnel;
+                    gl_FragColor = vec4(uAtmosphereColor, 1.0) * finalIntensity;
+                }
+            `,
+            blending: THREE.AdditiveBlending,
+            side: THREE.BackSide,
+            transparent: true
         });
         const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(this.size * 1.1, 64, 64), atmosphereMaterial);
         this.group.add(atmosphere);
     }
     update(elapsedTime, delta) {
         super.update(elapsedTime, delta);
-        // У цьому діагностичному режимі ми не оновлюємо уніформи шейдерів.
+        this.mesh.material.uniforms.uTime.value = elapsedTime;
+        // Обновление uSunDirection для шейдера Credo и его атмосферы
+        if (this.mesh.material.uniforms.uSunDirection && this.group.parent) {
+            const sunBody = this.group.parent.children.find(c => c.userData.celestialBody && c.userData.celestialBody.isSource);
+            if (sunBody) {
+                const sunPosition = new THREE.Vector3();
+                sunBody.getWorldPosition(sunPosition);
+                const sunDirection = new THREE.Vector3().subVectors(sunPosition, this.mesh.position).normalize();
+                this.mesh.material.uniforms.uSunDirection.value.copy(sunDirection);
+                // Обновляем атмосферу, если она есть
+                if (this.group.children[1] && this.group.children[1].material.uniforms && this.group.children[1].material.uniforms.uSunDirection) {
+                    this.group.children[1].material.uniforms.uSunDirection.value.copy(sunDirection);
+                }
+            }
+        }
     }
 }
 
