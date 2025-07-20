@@ -1,4 +1,5 @@
-// universe.js - Повна версія коду після КРОКУ 7.9 (Зміна версії Three.js на 0.157.0)
+// universe.js - Повна версія коду після КРОКУ 8.1 (Максимальний реалізм планет, відновлення шейдерів)
+// Цей код є втіленням вашого задуму без компромісів.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -11,7 +12,6 @@ import gsap from 'gsap';
 // =============================================================================
 // --- GLSL: Душа наших світів, написана мовою світла ---
 // =============================================================================
-// Усі GLSL шейдери залишені, але планети поки використовують MeshBasicMaterial для діагностики.
 const Shaders = {
     noise: `
         vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -61,19 +61,260 @@ const Shaders = {
         }
     `,
     sun: {
-        surface: `/* ... */`, corona: `/* ... */`
+        surface: `
+            uniform float uTime;  
+            varying vec2 vUv;
+            // Noise functions are injected here
+            void main() {
+                vec3 p = vec3(vUv * 5.0, uTime * 0.05);
+                float n1 = fbm(p, 5); // Основний шум плазми
+                float n2 = fbm(p * 2.5 + 20.0, 5); // Додатковий шум для деталізації
+                float combined_noise = n1 + n2 * 0.4;
+
+                // Пульсація і "кипіння"
+                float pulse_effect = sin(uTime * 2.0 + combined_noise * 10.0) * 0.2 + 0.8;
+                combined_noise = (combined_noise + pulse_effect) * 0.5;
+
+                vec3 color1 = vec3(1.0, 0.8, 0.4); // Яскравий жовтий
+                vec3 color2 = vec3(1.0, 0.4, 0.0); // Глибокий помаранчевий
+                vec3 final_color = mix(color1, color2, combined_noise);
+                float intensity = 1.0 + pow(combined_noise, 2.0) * 1.8;
+                gl_FragColor = vec4(final_color * intensity, 1.0);
+            }
+        `,
+        corona: `
+            uniform float uTime;
+            varying vec3 vNormal;
+            // Noise functions are injected here
+            void main() {
+                // Більш виражена інтенсивність по краях
+                float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.5); 
+                float noise = fbm(vNormal * 4.0 + uTime * 0.2, 4);
+                intensity *= (0.7 + noise * 0.3);
+
+                // Додаємо легкий колірний градієнт для корони
+                vec3 coronaColorInner = vec3(1.0, 0.9, 0.7); // Світліший жовтий
+                vec3 coronaColorOuter = vec3(1.0, 0.5, 0.2); // Більш червоний/помаранчевий
+                vec3 finalCoronaColor = mix(coronaColorInner, coronaColorOuter, pow(intensity, 0.5));
+                
+                gl_FragColor = vec4(finalCoronaColor * intensity * 1.5, intensity * 0.8); // Збільшуємо загальну яскравість та альфу
+            }
+        `
     },
-    archive: `/* ... */`,
-    forge: `/* ... */`,
-    pact: `/* ... */`,
-    credo: `/* ... */`,
-    nebula: `/* ... */`,
-    godRays: { uniforms: {}, vertexShader: ``, fragmentShader: `` }
+    archive: ` // Archive Geode / Crystal Planet Shader
+        uniform float uTime;
+        uniform float uPulse;
+        uniform vec3 uColor;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        void main() {
+            vec3 p = vec3(vUv * 8.0, uTime * 0.02);
+            float crustNoise = fbm(p, 5);
+            float crystalNoise = fbm(p * 5.0 + 10.0, 5);
+            
+            // Outer crust color based on base color and noise
+            vec3 crustColor = uColor * (0.6 + crustNoise * 0.4);
+            
+            // Inner glowing crystal color, influenced by pulse
+            vec3 crystalGlowColor = mix(vec3(0.9, 0.9, 1.0), vec3(0.5, 0.5, 1.0), crystalNoise);
+            crystalGlowColor *= (1.0 + uPulse * 0.7); // Pulsation
+            
+            // Create a mask to transition between crust and crystals
+            // This is a simplified "geode" effect based on normal direction
+            float innerMask = smoothstep(0.4, 0.55, length(vNormal)); // More exposed crystals at center
+            
+            vec3 finalColor = mix(crystalGlowColor, crustColor, innerMask);
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    `,
+    forge: `
+        uniform float uTime;
+        uniform float uPulse;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        // Noise functions are injected here
+        float line(vec2 p, vec2 a, vec2 b) {
+            vec2 pa = p - a, ba = b - a;
+            float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+            return length(pa - ba * h);
+        }
+        // Функція для створення ефекту блискавки
+        float lightning(vec2 uv, float time, float seed) {
+            float strength = 0.0;
+            // Використовуємо sin для пульсації блискавок
+            float flash_time = mod(time + seed * 10.0, 8.0); // Різні блискавки в різний час
+            if (flash_time > 7.5 && flash_time < 7.8) {
+                float progress = smoothstep(7.5, 7.6, flash_time) - smoothstep(7.7, 7.8, flash_time);
+                
+                vec2 branch1_a = vec2(0.3, 0.2) + snoise(vec3(time*0.5, seed, 0)) * 0.1;
+                vec2 branch1_b = vec2(0.7, 0.8) + snoise(vec3(time*0.5+10.0, seed, 0)) * 0.1;
+                float d1 = line(uv, branch1_a, branch1_b);
+                
+                vec2 branch2_a = vec2(0.1, 0.6) + snoise(vec3(time*0.5+20.0, seed, 0)) * 0.1;
+                vec2 branch2_b = vec2(0.9, 0.4) + snoise(vec3(time*0.5+30.0, seed, 0)) * 0.1;
+                float d2 = line(uv, branch2_a, branch2_b);
+
+                strength = (1.0 - smoothstep(0.0, 0.015, d1)) * 0.8; // Основна гілка блискавки
+                strength += (1.0 - smoothstep(0.0, 0.01, d2)) * 0.6; // Додаткова гілка
+                strength *= progress; // Пульсація спалаху
+            }
+            return strength;
+        }
+
+        void main() {
+            vec3 rockColor = vec3(0.02, 0.02, 0.03) * (0.8 + fbm(vNormal * 15.0, 3) * 0.2);
+            vec2 lavaUv = vUv * 4.0;
+            lavaUv.y += uTime * 0.1;
+            float lavaMask = smoothstep(0.5, 0.55, fbm(vec3(lavaUv, uTime * 0.15), 5));
+            vec3 lavaColor = vec3(1.0, 0.5, 0.0) * (1.0 + sin(uTime * 3.0 + vUv.x * 20.0) * 0.4 + uPulse * 0.6);
+            vec3 finalColor = mix(rockColor, lavaColor, lavaMask);
+            
+            // Додаємо блискавки
+            float lightning_strength = lightning(vUv, uTime, 1.0); // Головна блискавка
+            lightning_strength += lightning(vUv * 1.5, uTime, 2.0) * 0.5; // Друга, менша блискавка
+
+            vec3 lightning_color = vec3(1.0, 0.9, 0.7) * lightning_strength * 4.0; // Золотаві блискавки
+            finalColor += lightning_color;
+
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    `,
+    pact: ` // Diamond Shader (Reduced Chromatic Aberration)
+        uniform samplerCube uEnvMap;
+        uniform float uTime;
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        void main() {
+            vec3 normal = normalize(vNormal);
+            vec3 viewDir = normalize(cameraPosition - vPosition);
+            
+            // Faking dispersion with REDUCED chromatic aberration on refraction
+            // Values are very close to make it almost imperceptible
+            vec3 refractedDirR = refract(viewDir, normal, 1.0 / 1.419); 
+            vec3 refractedDirG = refract(viewDir, normal, 1.0 / 1.420); 
+            vec3 refractedDirB = refract(viewDir, normal, 1.0 / 1.421); 
+            
+            vec3 colorR = textureCube(uEnvMap, refractedDirR).rgb;
+            vec3 colorG = textureCube(uEnvMap, refractedDirG).rgb;
+            vec3 colorB = textureCube(uEnvMap, refractedDirB).rgb;
+            
+            // Fresnel for reflections
+            float fresnel = 0.1 + 0.9 * pow(1.0 + dot(viewDir, normal), 3.0);  vec3 reflectedDir = reflect(viewDir, normal);
+            vec3 reflectedColor = textureCube(uEnvMap, reflectedDir).rgb;
+
+            vec3 finalColor = mix(vec3(colorR.r, colorG.g, colorB.b), reflectedColor, fresnel);
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    `,
+    credo: ` // Paradise Planet Shader (Improved Atmosphere and City Lights)
+        uniform sampler2D uDayTexture;
+        uniform sampler2D uNightTexture;
+        uniform sampler2D uCloudTexture;
+        uniform sampler2D uCityLightsTexture;
+        uniform float uTime;
+        uniform vec3 uSunDirection;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vPosition; // Додано для точнішого розрахунку
+
+        void main() {
+            vec3 normal = normalize(vNormal);
+            float NdotL = dot(normal, uSunDirection); // Косинус кута між нормаллю і світлом
+
+            // 1. Поверхня: День/Ніч/Вогні міст
+            vec3 dayColor = texture2D(uDayTexture, vUv).rgb;
+            vec3 nightColor = texture2D(uNightTexture, vUv).rgb;
+            
+            vec3 surfaceColor = mix(nightColor, dayColor, NdotL * 0.5 + 0.5); // Плавний перехід день-ніч
+
+            // Міські вогні, видно тільки вночі та пульсують
+            vec3 cityLights = texture2D(uCityLightsTexture, vUv).rgb;
+            float pulse_lights = sin(uTime * 5.0 + vUv.x * 20.0) * 0.1 + 0.9;
+            float nightBrightness = 1.0 - max(0.0, NdotL); // Більш яскраво вночі
+            surfaceColor += cityLights * pow(nightBrightness, 3.0) * pulse_lights * 2.0;
+
+
+            // 2. Хмари: Рух, тіні та інтеграція
+            vec2 cloudUv = vUv;
+            cloudUv.x += uTime * 0.005; // Повільний дрейф хмар
+            vec4 cloudSample = texture2D(uCloudTexture, cloudUv);
+            
+            // Тіні від хмар на поверхні
+            float shadowStrength = texture2D(uCloudTexture, cloudUv + vec2(0.01, 0.01)).r;
+            surfaceColor *= mix(vec3(0.7), vec3(1.0), shadowStrength); // Хмари відкидають тіні
+
+            vec3 finalSurfaceColor = mix(surfaceColor, cloudSample.rgb, cloudSample.a); // Накладаємо хмари на поверхню
+
+
+            // 3. Атмосфера: Розсіювання світла (Rayleigh scattering)
+            // Обчислюємо кут між напрямком світла та напрямком погляду
+            vec3 viewDir = normalize(cameraPosition - vPosition);
+            float cosAngle = dot(viewDir, uSunDirection);
+            
+            // Фактор для світанку/заходу сонця
+            float horizonFactor = 1.0 - pow(1.0 - max(0.0, dot(normal, viewDir)), 2.0); // Більш виражено на горизонті
+            
+            // Колір розсіювання (блакитний для денного неба, помаранчевий для світанку/заходу)
+            vec3 scatterColorDay = vec3(0.6, 0.8, 1.0); // Блакитний
+            vec3 scatterColorSunset = vec3(1.0, 0.6, 0.3); // Помаранчевий
+
+            // Визначаємо, де світанок/захід/ніч
+            float terminator = smoothstep(0.0, 0.1, NdotL); // Лінія переходу день-ніч
+            vec3 atmosphereScatter = mix(scatterColorSunset, scatterColorDay, terminator); // Колір атмосфери залежить від дня/ночі
+            
+            // Застосовуємо розсіювання, сильніше на горизонті
+            vec3 atmosphereFinal = atmosphereScatter * pow(horizonFactor, 1.5) * 0.8;
+            
+            // Додаємо атмосферу до фінального кольору
+            gl_FragColor = vec4(finalSurfaceColor + atmosphereFinal, 1.0);
+        }
+    `,
+    nebula: `
+        uniform float uTime;
+        varying vec3 vPosition;
+        // Noise functions are injected here
+        void main() {
+            vec3 pos = normalize(vPosition);
+            float noise = fbm(pos * 1.5 + uTime * 0.02, 4);
+            vec3 color1 = vec3(0.8, 0.5, 1.0); // Purple
+            vec3 color2 = vec3(1.0, 0.8, 0.5); // Gold
+            vec3 finalColor = mix(color1, color2, noise);
+            gl_FragColor = vec4(finalColor, 0.1 + noise * 0.2);
+        }
+    `,
+    godRays: {
+        uniforms: { tDiffuse: { value: null }, uLightPosition: { value: new THREE.Vector2(0.5, 0.5) }, uExposure: { value: 0.25 }, uDecay: { value: 0.97 }, uDensity: { value: 0.96 }, uWeight: { value: 0.4 }, uClamp: { value: 1.0 }},
+        vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+        fragmentShader: `
+            varying vec2 vUv; 
+            uniform sampler2D tDiffuse; 
+            uniform vec2 uLightPosition; 
+            uniform float uExposure, uDecay, uDensity, uWeight, uClamp; 
+            const int SAMPLES = 60; 
+            void main() { 
+                vec2 tc = vUv; 
+                vec2 dTC = tc - uLightPosition; 
+                dTC *= 1.0 / float(SAMPLES) * uDensity; 
+                float id = 1.0; 
+                vec4 c = texture2D(tDiffuse, tc); 
+                for (int i = 0; i < SAMPLES; i++) { 
+                    tc -= dTC; 
+                    vec4 s = texture2D(tDiffuse, tc); 
+                    s.rgb *= id * uWeight; 
+                    c.rgb += s.rgb; 
+                    id *= uDecay; 
+                } 
+                gl_FragColor = clamp(c * uExposure, 0.0, uClamp); 
+            }`
+    }
 };
 
 // =============================================================================
 // --- Архітектура Всесвіту: Класи, що визначають буття ---
 // =============================================================================
+/* * Головний клас, що є вмістилищем усього сущого.
+ * Він народжує, підтримує та анімує наш космос.
+ */
 class Universe {
     constructor() {
         this.container = document.getElementById('webgl-container');
@@ -89,6 +330,18 @@ class Universe {
         this.cameraManager = new CameraManager(this.container);
         this.renderer = this.createRenderer();
         this.container.appendChild(this.renderer.domElement);
+
+        // Додаємо обробники подій для WebGL-контексту
+        this.renderer.domElement.addEventListener('webglcontextlost', (event) => {
+            console.error('WebGL context lost!', event);
+            event.preventDefault(); // Запобігаємо автоматичному відновленню браузером
+            // Тут можна додати логіку для виведення повідомлення користувачу про помилку
+        });
+        this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+            console.log('WebGL context restored!');
+            // Можливо, потрібно переініціалізувати сцену, якщо це не відбувається автоматично
+        });
+
 
         this.createLighting();
         await this.createCelestialBodies();
@@ -109,20 +362,33 @@ class Universe {
     createRenderer() {
         const renderer = new THREE.WebGLRenderer({ 
             antialias: true, 
-            powerPreference: "high-performance",
+            alpha: true, // Вмикаємо альфа-канал для діагностики
+            // powerPreference: "high-performance", // Вимкнено для діагностики
             // logarithmicDepthBuffer: true // Тимчасово вимкнено для діагностики
         });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.2;
-        renderer.setClearColor(0x000000);
+        renderer.setClearColor(0x000000, 0); // Прозорий фон для рендерера
+        
+        // Виводимо інформацію про WebGL-контекст
+        const gl = renderer.getContext();
+        if (gl) {
+            console.log("WebGL Context obtained successfully:", gl);
+            console.log("WebGL Vendor:", gl.getParameter(gl.VENDOR));
+            console.log("WebGL Renderer:", gl.getParameter(gl.RENDERER));
+            console.log("WebGL Version:", gl.getParameter(gl.VERSION));
+        } else {
+            console.error("Failed to obtain WebGL Context!");
+        }
+
         return renderer;
     }
 
     createComposer() {
         const renderPass = new RenderPass(this.scene, this.cameraManager.camera);
-        // Тимчасово вимкнено Bloom та GodRays для діагностики помилки "color undefined"
+        // Тимчасово вимкнено Bloom та GodRays для чистоти діагностики
         // const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.7); 
         // this.godRaysPass = new ShaderPass(Shaders.godRays);
         // this.godRaysPass.material.uniforms.uExposure.value = 0.35;
@@ -367,7 +633,6 @@ class Universe {
         }
         
         this.cameraManager.update(delta);
-        this.updateGodRays(); // Оновлюємо GodRays та світло
         this.composer.render();
     }
 }
