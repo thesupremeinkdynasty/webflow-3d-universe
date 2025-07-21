@@ -558,7 +558,8 @@ class Universe {
                     default: 
                         // Для базового класу Planet (Гільдія, Інсайти)
                         planet = new Planet(config); 
-                        const material = new THREE.ShaderMaterial({ // Повертаємо ShaderMaterial для базових планет
+                        // Створюємо ShaderMaterial для базових планет
+                        const material = new THREE.ShaderMaterial({ 
                             uniforms: {
                                 uTime: { value: 0 },
                                 uPulse: { value: 0 },
