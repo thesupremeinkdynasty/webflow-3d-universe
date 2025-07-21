@@ -1,13 +1,12 @@
-// universe.js - Повна версія коду після КРОКУ 10.2 (Повне відновлення реалізму планет та деталізації)
-// Цей код є втіленням вашого задуму без компромісів.
+// universe.js - Повна версія коду після КРОКУ 12.1 (Прямі імпорти CDN)
 
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import gsap from 'gsap';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/controls/OrbitControls.js';
+import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/RenderPass.js';
+import { ShaderPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/ShaderPass.js';
+import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+import gsap from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/index.js';
 
 // =============================================================================
 // --- GLSL: Душа наших світів, написана мовою світла ---
@@ -86,7 +85,7 @@ const Shaders = {
         surface: `
             uniform float uTime;  
             varying vec2 vUv;
-            // Noise functions are injected here
+            // Noise functions are injected here (from Shaders.noise)
             void main() {
                 vec3 p = vec3(vUv * 5.0, uTime * 0.05);
                 float n1 = fbm(p, 5); // Основний шум плазми
@@ -107,7 +106,7 @@ const Shaders = {
         corona: `
             uniform float uTime;
             varying vec3 vNormal;
-            // Noise functions are injected here
+            // Noise functions are injected here (from Shaders.noise)
             void main() {
                 // Більш виражена інтенсивність по краях
                 float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.5); 
@@ -154,7 +153,7 @@ const Shaders = {
         uniform float uPulse;
         varying vec2 vUv;
         varying vec3 vNormal;
-        // Noise functions are injected here
+        // Noise functions are injected here (from Shaders.noise)
         float line(vec2 p, vec2 a, vec2 b) {
             vec2 pa = p - a, ba = b - a;
             float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
@@ -294,7 +293,7 @@ const Shaders = {
     nebula: `
         uniform float uTime;
         varying vec3 vPosition;
-        // Noise functions are injected here
+        // Noise functions are injected here (from Shaders.noise)
         void main() {
             vec3 pos = normalize(vPosition);
             float noise = fbm(pos * 1.5 + uTime * 0.02, 4);
@@ -339,7 +338,7 @@ const Shaders = {
  */
 class Universe {
     constructor() {
-        this.container = document.getElementById('webgl-container');
+        this.container = document.getElementById('webgl-canvas'); // Змінено на webgl-canvas
         this.clock = new THREE.Clock();
         this.celestialBodies = [];
         this.init();
@@ -368,20 +367,19 @@ class Universe {
         this.createLighting();
         // Додаємо try-catch блок для Promise, як радить AI асистент
         try {
-            // Тимчасово створюємо тільки Сонце та одну тестову сферу
-            this.createSunAndTestSphere(); 
-            // await this.createCelestialBodies(); // Вимкнено для діагностики
+            this.createSun(); // Створюємо Сонце
+            await this.createCelestialBodies(); // АКТИВОВАНО СТВОРЕННЯ ВСІХ ПЛАНЕТ
         } catch (error) {
-            console.error("An error occurred during createCelestialBodies:", error);
+            console.error("An error occurred during celestial body creation:", error);
             // Можна вивести повідомлення на екран користувачу, що 3D-сцена не завантажилася
             this.loaderManager.showError("Не вдалося завантажити Всесвіт. Спробуйте оновити сторінку.");
+            return; // Зупиняємо ініціалізацію, якщо є помилки завантаження
         }
         this.createStarfield();
         this.createNebula();
         this.createCosmicDust();
 
-        // Тимчасово вимкнено Composer для діагностики
-        // this.composer = this.createComposer();
+        this.composer = this.createComposer(); // Увімкнено Composer
         this.apiService = new ApiService();
         this.uiManager = new UIManager(this.cameraManager, this.celestialBodies.filter(b => !b.isSource), this.apiService);
         
@@ -393,13 +391,14 @@ class Universe {
 
     createRenderer() {
         const renderer = new THREE.WebGLRenderer({ 
+            canvas: this.container, // Прив'язуємо до існуючого canvas
             antialias: true, 
             alpha: true, 
-            // powerPreference: "high-performance", // Вимкнено для максимальної сумісності
-            // logarithmicDepthBuffer: true // Вимкнено для діагностики
+            powerPreference: "high-performance", 
+            logarithmicDepthBuffer: true 
         });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio); // Змінено на повний pixelRatio
+        renderer.setPixelRatio(window.devicePixelRatio); 
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.2;
         renderer.setClearColor(0x000000, 0); 
@@ -417,18 +416,24 @@ class Universe {
         return renderer;
     }
 
-    // Тимчасово спрощений Composer
     createComposer() {
         const renderPass = new RenderPass(this.scene, this.cameraManager.camera);
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.7); 
+        this.godRaysPass = new ShaderPass(Shaders.godRays);
+        this.godRaysPass.material.uniforms.uExposure.value = 0.35;
+        this.godRaysPass.material.uniforms.uWeight.value = 0.5;   
+        this.godRaysPass.needsSwap = true;
+        
         const composer = new EffectComposer(this.renderer);
         composer.addPass(renderPass);
+        composer.addPass(this.godRaysPass); 
+        composer.addPass(bloomPass); 
         return composer;
     }
 
     createLighting() {
         this.scene.add(new THREE.AmbientLight(0xFFFFFF, 0.05));
-        const sunLight = new THREE.DirectionalLight(0xFFFFFF, 0.5);
-        sunLight.position.set(0, 0, 0); 
+        const sunLight = new THREE.PointLight(0xffffff, 1000, 0); 
         this.scene.add(sunLight);
         this.sunLight = sunLight;
     }
@@ -438,15 +443,15 @@ class Universe {
         textureLoader.load(
             'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687d3cc795859f0d3a3b488f_8k_stars_milky_way.jpg',
             (texture) => {
-                const geometry = new THREE.SphereGeometry(2000, 64, 64);
+                const geometry = new THREE.SphereGeometry(2000, 64, 64); 
                 const material = new THREE.MeshBasicMaterial({
                     map: texture,
-                    side: THREE.BackSide
+                    side: THREE.BackSide 
                 });
                 const starfieldSphere = new THREE.Mesh(geometry, material);
                 this.scene.add(starfieldSphere);
             },
-            undefined,
+            undefined, 
             (error) => {
                 console.error('Error loading starfield texture:', error);
                 this.createProceduralStarfield();
@@ -517,23 +522,14 @@ class Universe {
         this.scene.add(this.cosmicDust);
     }
 
-    // Тимчасова функція для створення Сонця та однієї тестової сфери
-    createSunAndTestSphere() {
+    createSun() {
         const source = new Sun({ name: "Джерело", description: "Джерело всього світла і життя. Споглядай Його велич.", size: 10 });
         this.celestialBodies.push(source);
         this.scene.add(source.group);
-
-        // Додаємо просту білу сферу в центр сцени
-        const testGeometry = new THREE.SphereGeometry(2, 32, 32);
-        const testMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF }); // Білий колір
-        const testSphere = new THREE.Mesh(testGeometry, testMaterial);
-        testSphere.position.set(20, 0, 0); // Розташовуємо її, щоб бачити
-        this.scene.add(testSphere);
-        this.testSphere = testSphere; // Зберігаємо посилання для анімації
+        this.sunLight.position.copy(source.group.position);
     }
 
     async createCelestialBodies() {
-        // Ця функція поки що не використовується, але залишається для майбутнього відновлення
         const textureLoader = new THREE.TextureLoader();
         console.log("Attempting to load Credo textures...");
         const textures = await this.loadCredoTextures(textureLoader);
@@ -549,28 +545,52 @@ class Universe {
             { type: 'Planet', name: "Інсайти", description: "Газовий гігант, у вихорах якого приховані глибокі відкриття та несподівані думки.", color: new THREE.Color(0xFF4500), size: 3.0, orbit: { a: 95, b: 90, speed: 0.015, axialSpeed: 0.08 }, hasGreatSpot: true, greatSpotColor: new THREE.Color(0x8B0000), prompt: "Створи вірш або прозу про раптові спалахи інсайтів, що з'являються з хаосу мислення, як Велика Червона Пляма на газовому гіганті, символізуючи потужність інтелекту.", url: 'insights' }
         ];
 
-        // Ця частина коду зараз не активна
-        // planetsConfig.forEach(config => {
-        //     let planet;
-        //     switch(config.type) {
-        //         case 'Archive': planet = new Archive(config); break; 
-        //         case 'Forge': planet = new Forge(config); break;
-        //         case 'Pact': planet = new Pact(config, this.renderer, this.scene); break;
-        //         case 'Credo': planet = new Credo(config); break;
-        //         default: 
-        //             planet = new Planet(config); 
-        //             const material = new THREE.ShaderMaterial({ 
-        //                 uniforms: { uTime: { value: 0 }, uPulse: { value: 0 }, uColor: { value: config.color || new THREE.Color(0xffffff) } },
-        //                 vertexShader: Shaders.sharedVertex,
-        //                 fragmentShader: Shaders.noise + `uniform float uTime; uniform float uPulse; uniform vec3 uColor; varying vec2 vUv; void main() { float n = fbm(vec3(vUv * 8.0, uTime * 0.05), 5); vec3 finalColor = uColor * (0.7 + n * 0.6) * (1.0 + uPulse * 0.2); gl_FragColor = vec4(finalColor, 1.0); }`
-        //             });
-        //             planet.mesh = new THREE.Mesh(new THREE.SphereGeometry(planet.size, 64, 64), material);
-        //             planet.mesh.userData.celestialBody = planet;
-        //             planet.group.add(planet.mesh);
-        //     }
-        //     this.celestialBodies.push(planet);
-        //     this.scene.add(planet.group);
-        // });
+        planetsConfig.forEach(config => {
+            let planet;
+            try { // Додано try-catch для створення кожної планети
+                switch(config.type) {
+                    case 'Archive': planet = new Archive(config); break; 
+                    case 'Forge': planet = new Forge(config); break;
+                    case 'Pact': planet = new Pact(config, this.renderer, this.scene); break;
+                    case 'Credo': planet = new Credo(config); break;
+                    default: 
+                        // Для базового класу Planet (Гільдія, Інсайти)
+                        planet = new Planet(config); 
+                        const material = new THREE.ShaderMaterial({ 
+                            uniforms: {
+                                uTime: { value: 0 },
+                                uPulse: { value: 0 },
+                                uColor: { value: config.color || new THREE.Color(0xffffff) } // Fallback до білого
+                            },
+                            vertexShader: Shaders.sharedVertex,
+                            fragmentShader: Shaders.noise + `
+                                uniform float uTime;
+                                uniform float uPulse;
+                                uniform vec3 uColor;
+                                varying vec2 vUv;
+                                void main() {
+                                    float n = fbm(vec3(vUv * 8.0, uTime * 0.05), 5);
+                                    vec3 finalColor = uColor * (0.7 + n * 0.6) * (1.0 + uPulse * 0.2);
+                                    gl_FragColor = vec4(finalColor, 1.0);
+                                }
+                            `
+                        });
+                        planet.mesh = new THREE.Mesh(new THREE.SphereGeometry(planet.size, 64, 64), material);
+                        planet.mesh.userData.celestialBody = planet;
+                        planet.group.add(planet.mesh);
+                }
+                this.celestialBodies.push(planet);
+                this.scene.add(planet.group);
+            } catch (e) {
+                console.error(`Error creating planet ${config.name}:`, e);
+                // Якщо створення планети не вдалося, додаємо просту запасну сферу
+                const fallbackMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x808080) }); // Сірий колір
+                const fallbackMesh = new THREE.Mesh(new THREE.SphereGeometry(config.size, 32, 32), fallbackMaterial);
+                fallbackMesh.position.set(config.orbit.a, 0, config.orbit.b); // Розміщуємо на орбіті
+                this.scene.add(fallbackMesh);
+                console.warn(`Fallback to basic sphere for ${config.name}`);
+            }
+        });
     }
 
     async loadCredoTextures(loader) {
@@ -584,6 +604,7 @@ class Universe {
             console.log("Loading Credo cloud texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png');
             const cloudTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png');
 
+            // Замінюємо проблемне посилання на плейсхолдер, щоб уникнути 404 та CORS
             console.log("Loading Credo city lights texture (FIXED URL):", 'https://placehold.co/2048x1024/000000/FFFFFF?text=CityLights');
             const cityLightsTexture = await loader.loadAsync('https://placehold.co/2048x1024/000000/FFFFFF?text=CityLights'); 
             
@@ -650,12 +671,10 @@ class Universe {
     onResize() {
         this.cameraManager.onResize();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        if (this.composer) this.composer.setSize(window.innerWidth, window.innerHeight); // Перевірка на існування composer
+        if (this.composer) this.composer.setSize(window.innerWidth, window.innerHeight); 
     }
     
     updateGodRays() {
-        // Ця функція не використовується, коли composer вимкнений
-        // Якщо composer увімкнено, ця логіка буде оновлювати промені
         if (!this.composer || !this.godRaysPass) return; 
 
         const sunBody = this.celestialBodies.find(b => b.isSource);
@@ -698,7 +717,6 @@ class Universe {
         }
         
         this.cameraManager.update(delta);
-        // Використовуємо composer.render(), якщо він існує, інакше renderer.render()
         if (this.composer) {
             this.composer.render();
         } else {
@@ -1027,7 +1045,7 @@ class Planet extends CelestialBody {
             const atmosphereMaterial = new THREE.ShaderMaterial({ 
                 uniforms: {
                     uSunDirection: { value: new THREE.Vector3(1, 0, 0) },
-                    uAtmosphereColor: { value: config.color || new THREE.Color(0xffffff) } 
+                    uAtmosphereColor: { value: config.color || new THREE.Color(0x4a90e2) } 
                 },
                 vertexShader: Shaders.sharedVertex, 
                 fragmentShader: Shaders.noise + `
