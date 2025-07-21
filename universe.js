@@ -1,5 +1,5 @@
-// universe.js - Повна версія коду після КРОКУ 9.3 (Посилена діагностика шейдерів та запасні матеріали)
-// Цей код є втіленням вашого задуму без компромісів.
+// universe.js - Повна версія коду після КРОКУ 10.1 (Базовий рендеринг для діагностики)
+// Цей код має показати хоча б одну сферу, якщо Three.js взагалі працює.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -10,7 +10,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import gsap from 'gsap';
 
 // =============================================================================
-// --- GLSL: Душа наших світів, написана мовою світла ---
+// --- GLSL: Душа наших світів (тимчасово спрощені для діагностики) ---
 // =============================================================================
 const Shaders = {
     noise: `
@@ -86,223 +86,34 @@ const Shaders = {
         surface: `
             uniform float uTime;  
             varying vec2 vUv;
-            // Noise functions are injected here
-            void main() {
-                vec3 p = vec3(vUv * 5.0, uTime * 0.05);
-                float n1 = fbm(p, 5); // Основний шум плазми
-                float n2 = fbm(p * 2.5 + 20.0, 5); // Додатковий шум для деталізації
-                float combined_noise = n1 + n2 * 0.4;
-
-                // Пульсація і "кипіння"
-                float pulse_effect = sin(uTime * 2.0 + combined_noise * 10.0) * 0.2 + 0.8;
-                combined_noise = (combined_noise + pulse_effect) * 0.5;
-
-                vec3 color1 = vec3(1.0, 0.8, 0.4); // Яскравий жовтий
-                vec3 color2 = vec3(1.0, 0.4, 0.0); // Глибокий помаранчевий
-                vec3 final_color = mix(color1, color2, combined_noise);
-                float intensity = 1.0 + pow(combined_noise, 2.0) * 1.8;
-                gl_FragColor = vec4(final_color * intensity, 1.0);
-            }
+            void main() { gl_FragColor = vec4(1.0, 0.8, 0.4, 1.0); } // Fixed color for diagnostic
         `,
         corona: `
             uniform float uTime;
             varying vec3 vNormal;
-            // Noise functions are injected here
-            void main() {
-                // Більш виражена інтенсивність по краях
-                float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.5); 
-                float noise = fbm(vNormal * 4.0 + uTime * 0.2, 4);
-                intensity *= (0.7 + noise * 0.3);
-
-                // Додаємо легкий колірний градієнт для корони
-                vec3 coronaColorInner = vec3(1.0, 0.9, 0.7); // Світліший жовтий
-                vec3 coronaColorOuter = vec3(1.0, 0.5, 0.2); // Більш червоний/помаранчевий
-                vec3 finalCoronaColor = mix(coronaColorInner, coronaColorOuter, pow(intensity, 0.5));
-                
-                gl_FragColor = vec4(finalCoronaColor * intensity * 1.5, intensity * 0.8); // Збільшуємо загальну яскравість та альфу
-            }
+            void main() { gl_FragColor = vec4(1.0, 0.8, 0.4, 0.1); } // Fixed color for diagnostic
         `
     },
-    archive: ` // Archive Geode / Crystal Planet Shader
-        uniform float uTime;
-        uniform float uPulse;
-        uniform vec3 uColor;
-        varying vec2 vUv;
-        varying vec3 vNormal;
-        void main() {
-            vec3 p = vec3(vUv * 8.0, uTime * 0.02);
-            float crustNoise = fbm(p, 5);
-            float crystalNoise = fbm(p * 5.0 + 10.0, 5);
-            
-            // Outer crust color based on base color and noise
-            vec3 crustColor = uColor * (0.6 + crustNoise * 0.4);
-            
-            // Inner glowing crystal color, influenced by pulse
-            vec3 crystalGlowColor = mix(vec3(0.9, 0.9, 1.0), vec3(0.5, 0.5, 1.0), crystalNoise);
-            crystalGlowColor *= (1.0 + uPulse * 0.7); // Pulsation
-            
-            // Create a mask to transition between crust and crystals
-            // This is a simplified "geode" effect based on normal direction
-            float innerMask = smoothstep(0.4, 0.55, length(vNormal)); // More exposed crystals at center
-            
-            vec3 finalColor = mix(crystalGlowColor, crustColor, innerMask);
-            gl_FragColor = vec4(finalColor, 1.0);
-        }
+    archive: ` // Archive Geode / Crystal Planet Shader (DIAGNOSTIC FIXED COLOR)
+        uniform float uTime; uniform float uPulse; uniform vec3 uColor; varying vec2 vUv; varying vec3 vNormal;
+        void main() { gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0); } // Fixed BLUE color for diagnosis
     `,
-    forge: `
-        uniform float uTime;
-        uniform float uPulse;
-        varying vec2 vUv;
-        varying vec3 vNormal;
-        // Noise functions are injected here
-        float line(vec2 p, vec2 a, vec2 b) {
-            vec2 pa = p - a, ba = b - a;
-            float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-            return length(pa - ba * h);
-        }
-        // Функція для створення ефекту блискавки
-        float lightning(vec2 uv, float time, float seed) {
-            float strength = 0.0;
-            // Використовуємо sin для пульсації блискавок
-            float flash_time = mod(time + seed * 10.0, 8.0); // Різні блискавки в різний час
-            if (flash_time > 7.5 && flash_time < 7.8) {
-                float progress = smoothstep(7.5, 7.6, flash_time) - smoothstep(7.7, 7.8, flash_time);
-                
-                vec2 branch1_a = vec2(0.3, 0.2) + snoise(vec3(time*0.5, seed, 0)) * 0.1;
-                vec2 branch1_b = vec2(0.7, 0.8) + snoise(vec3(time*0.5+10.0, seed, 0)) * 0.1;
-                float d1 = line(uv, branch1_a, branch1_b);
-                
-                vec2 branch2_a = vec2(0.1, 0.6) + snoise(vec3(time*0.5+20.0, seed, 0)) * 0.1;
-                vec2 branch2_b = vec2(0.9, 0.4) + snoise(vec3(time*0.5+30.0, seed, 0)) * 0.1;
-                float d2 = line(uv, branch2_a, branch2_b);
-
-                strength = (1.0 - smoothstep(0.0, 0.015, d1)) * 0.8; // Основна гілка блискавки
-                strength += (1.0 - smoothstep(0.0, 0.01, d2)) * 0.6; // Додаткова гілка
-                strength *= progress; // Пульсація спалаху
-            }
-            return strength;
-        }
-
-        void main() {
-            vec3 rockColor = vec3(0.02, 0.02, 0.03) * (0.8 + fbm(vNormal * 15.0, 3) * 0.2);
-            vec2 lavaUv = vUv * 4.0;
-            lavaUv.y += uTime * 0.1;
-            float lavaMask = smoothstep(0.5, 0.55, fbm(vec3(lavaUv, uTime * 0.15), 5));
-            vec3 lavaColor = vec3(1.0, 0.5, 0.0) * (1.0 + sin(uTime * 3.0 + vUv.x * 20.0) * 0.4 + uPulse * 0.6);
-            vec3 finalColor = mix(rockColor, lavaColor, lavaMask);
-            
-            // Додаємо блискавки
-            float lightning_strength = lightning(vUv, uTime, 1.0); // Головна блискавка
-            lightning_strength += lightning(vUv * 1.5, uTime, 2.0) * 0.5; // Друга, менша блискавка
-
-            vec3 lightning_color = vec3(1.0, 0.9, 0.7) * lightning_strength * 4.0; // Золотаві блискавки
-            finalColor += lightning_color;
-
-            gl_FragColor = vec4(finalColor, 1.0);
-        }
+    forge: ` // Forge Planet Shader (DIAGNOSTIC FIXED COLOR)
+        uniform float uTime; uniform float uPulse; varying vec2 vUv; varying vec3 vNormal;
+        void main() { gl_FragColor = vec4(1.0, 0.5, 0.0, 1.0); } // Fixed ORANGE color for diagnosis
     `,
-    pact: ` // Diamond Shader (Reduced Chromatic Aberration)
-        uniform samplerCube uEnvMap;
-        uniform float uTime;
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        void main() {
-            vec3 normal = normalize(vNormal);
-            vec3 viewDir = normalize(cameraPosition - vPosition);
-            
-            // Faking dispersion with REDUCED chromatic aberration on refraction
-            // Values are very close to make it almost imperceptible
-            vec3 refractedDirR = refract(viewDir, normal, 1.0 / 1.419); 
-            vec3 refractedDirG = refract(viewDir, normal, 1.0 / 1.420); 
-            vec3 refractedDirB = refract(viewDir, normal, 1.0 / 1.421); 
-            
-            vec3 colorR = textureCube(uEnvMap, refractedDirR).rgb;
-            vec3 colorG = textureCube(uEnvMap, refractedDirG).rgb;
-            vec3 colorB = textureCube(uEnvMap, refractedDirB).rgb;
-            
-            // Fresnel for reflections
-            float fresnel = 0.1 + 0.9 * pow(1.0 + dot(viewDir, normal), 3.0);  vec3 reflectedDir = reflect(viewDir, normal);
-            vec3 reflectedColor = textureCube(uEnvMap, reflectedDir).rgb;
-
-            vec3 finalColor = mix(vec3(colorR.r, colorG.g, colorB.b), reflectedColor, fresnel);
-            gl_FragColor = vec4(finalColor, 1.0);
-        }
+    pact: ` // Diamond Shader (DIAGNOSTIC FIXED COLOR)
+        uniform samplerCube uEnvMap; uniform float uTime; varying vec3 vNormal; varying vec3 vPosition;
+        void main() { gl_FragColor = vec4(0.8, 0.0, 0.8, 1.0); } // Fixed PURPLE color for diagnosis
     `,
-    credo: ` // Paradise Planet Shader (Improved Atmosphere and City Lights)
-        uniform sampler2D uDayTexture;
-        uniform sampler2D uNightTexture;
-        uniform sampler2D uCloudTexture;
-        uniform sampler2D uCityLightsTexture;
-        uniform float uTime;
-        uniform vec3 uSunDirection;
-        varying vec2 vUv;
-        varying vec3 vNormal;
-        varying vec3 vPosition; // Додано для точнішого розрахунку
-
-        void main() {
-            vec3 normal = normalize(vNormal);
-            float NdotL = dot(normal, uSunDirection); // Косинус кута між нормаллю і світлом
-
-            // 1. Поверхня: День/Ніч/Вогні міст
-            vec3 dayColor = texture2D(uDayTexture, vUv).rgb;
-            vec3 nightColor = texture2D(uNightTexture, vUv).rgb;
-            
-            vec3 surfaceColor = mix(nightColor, dayColor, NdotL * 0.5 + 0.5); // Плавний перехід день-ніч
-
-            // Міські вогні, видно тільки вночі та пульсують
-            vec3 cityLights = texture2D(uCityLightsTexture, vUv).rgb;
-            float pulse_lights = sin(uTime * 5.0 + vUv.x * 20.0) * 0.1 + 0.9;
-            float nightBrightness = 1.0 - max(0.0, NdotL); // Більш яскраво вночі
-            surfaceColor += cityLights * pow(nightBrightness, 3.0) * pulse_lights * 2.0;
-
-
-            // 2. Хмари: Рух, тіні та інтеграція
-            vec2 cloudUv = vUv;
-            cloudUv.x += uTime * 0.005; // Повільний дрейф хмар
-            vec4 cloudSample = texture2D(uCloudTexture, cloudUv);
-            
-            // Тіні від хмар на поверхні
-            float shadowStrength = texture2D(uCloudTexture, cloudUv + vec2(0.01, 0.01)).r;
-            surfaceColor *= mix(vec3(0.7), vec3(1.0), shadowStrength); // Хмари відкидають тіні
-
-            vec3 finalSurfaceColor = mix(surfaceColor, cloudSample.rgb, cloudSample.a); // Накладаємо хмари на поверхню
-
-
-            // 3. Атмосфера: Розсіювання світла (Rayleigh scattering)
-            // Обчислюємо кут між напрямком світла та напрямком погляду
-            vec3 viewDir = normalize(cameraPosition - vPosition);
-            float cosAngle = dot(viewDir, uSunDirection);
-            
-            // Фактор для світанку/заходу сонця
-            float horizonFactor = 1.0 - pow(1.0 - max(0.0, dot(normal, viewDir)), 2.0); // Більш виражено на горизонті
-            
-            // Колір розсіювання (блакитний для денного неба, помаранчевий для світанку/заходу)
-            vec3 scatterColorDay = vec3(0.6, 0.8, 1.0); // Блакитний
-            vec3 scatterColorSunset = vec3(1.0, 0.6, 0.3); // Помаранчевий
-
-            // Визначаємо, де світанок/захід/ніч
-            float terminator = smoothstep(0.0, 0.1, NdotL); // Лінія переходу день-ніч
-            vec3 atmosphereScatter = mix(scatterColorSunset, scatterColorDay, terminator); // Колір атмосфери залежить від дня/ночі
-            
-            // Застосовуємо розсіювання, сильніше на горизонті
-            vec3 atmosphereFinal = atmosphereScatter * pow(horizonFactor, 1.5) * 0.8;
-            
-            // Додаємо атмосферу до фінального кольору
-            gl_FragColor = vec4(finalSurfaceColor + atmosphereFinal, 1.0);
-        }
+    credo: ` // Paradise Planet Shader (DIAGNOSTIC FIXED COLOR)
+        uniform sampler2D uDayTexture; uniform sampler2D uNightTexture; uniform sampler2D uCloudTexture; uniform sampler2D uCityLightsTexture; uniform float uTime; uniform vec3 uSunDirection; varying vec2 vUv; varying vec3 vNormal; varying vec3 vPosition;
+        void main() { gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0); } // Fixed GREEN color for diagnosis
     `,
     nebula: `
         uniform float uTime;
         varying vec3 vPosition;
-        // Noise functions are injected here
-        void main() {
-            vec3 pos = normalize(vPosition);
-            float noise = fbm(pos * 1.5 + uTime * 0.02, 4);
-            vec3 color1 = vec3(0.8, 0.5, 1.0); // Purple
-            vec3 color2 = vec3(1.0, 0.8, 0.5); // Gold
-            vec3 finalColor = mix(color1, color2, noise);
-            gl_FragColor = vec4(finalColor, 0.1 + noise * 0.2);
-        }
+        void main() { gl_FragColor = vec4(0.5, 0.5, 0.5, 0.1); } // Fixed GRAY color for diagnosis
     `,
     godRays: {
         uniforms: { tDiffuse: { value: null }, uLightPosition: { value: new THREE.Vector2(0.5, 0.5) }, uExposure: { value: 0.25 }, uDecay: { value: 0.97 }, uDensity: { value: 0.96 }, uWeight: { value: 0.4 }, uClamp: { value: 1.0 }},
@@ -368,7 +179,9 @@ class Universe {
         this.createLighting();
         // Додаємо try-catch блок для Promise, як радить AI асистент
         try {
-            await this.createCelestialBodies();
+            // Тимчасово створюємо тільки Сонце та одну тестову сферу
+            this.createSunAndTestSphere(); 
+            // await this.createCelestialBodies(); // Вимкнено для діагностики
         } catch (error) {
             console.error("An error occurred during createCelestialBodies:", error);
             // Можна вивести повідомлення на екран користувачу, що 3D-сцена не завантажилася
@@ -378,7 +191,8 @@ class Universe {
         this.createNebula();
         this.createCosmicDust();
 
-        this.composer = this.createComposer();
+        // Тимчасово вимкнено Composer для діагностики
+        // this.composer = this.createComposer();
         this.apiService = new ApiService();
         this.uiManager = new UIManager(this.cameraManager, this.celestialBodies.filter(b => !b.isSource), this.apiService);
         
@@ -391,17 +205,16 @@ class Universe {
     createRenderer() {
         const renderer = new THREE.WebGLRenderer({ 
             antialias: true, 
-            alpha: true, // Вмикаємо альфа-канал для діагностики
-            powerPreference: "high-performance", // Повертаємо high-performance
-            logarithmicDepthBuffer: true // Повертаємо logarithmicDepthBuffer
+            alpha: true, 
+            // powerPreference: "high-performance", // Вимкнено для максимальної сумісності
+            // logarithmicDepthBuffer: true // Вимкнено для діагностики
         });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio); // Змінено на повний pixelRatio для максимальної деталізації
+        renderer.setPixelRatio(window.devicePixelRatio); // Змінено на повний pixelRatio
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.2;
-        renderer.setClearColor(0x000000, 0); // Прозорий фон для рендерера
+        renderer.setClearColor(0x000000, 0); 
         
-        // Виводимо інформацію про WebGL-контекст
         const gl = renderer.getContext();
         if (gl) {
             console.log("WebGL Context obtained successfully:", gl);
@@ -415,19 +228,11 @@ class Universe {
         return renderer;
     }
 
+    // Тимчасово спрощений Composer
     createComposer() {
         const renderPass = new RenderPass(this.scene, this.cameraManager.camera);
-        // Повторно увімкнено Bloom та GodRays
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.7); 
-        this.godRaysPass = new ShaderPass(Shaders.godRays);
-        this.godRaysPass.material.uniforms.uExposure.value = 0.35;
-        this.godRaysPass.material.uniforms.uWeight.value = 0.5;   
-        this.godRaysPass.needsSwap = true;
-        
         const composer = new EffectComposer(this.renderer);
         composer.addPass(renderPass);
-        composer.addPass(this.godRaysPass); // Увімкнено
-        composer.addPass(bloomPass); // Увімкнено
         return composer;
     }
 
@@ -440,29 +245,26 @@ class Universe {
     }
 
     createStarfield() {
-        // Завантажуємо текстуру Чумацького Шляху
         const textureLoader = new THREE.TextureLoader();
         textureLoader.load(
             'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687d3cc795859f0d3a3b488f_8k_stars_milky_way.jpg',
             (texture) => {
-                const geometry = new THREE.SphereGeometry(2000, 64, 64); // Велика сфера для фону
+                const geometry = new THREE.SphereGeometry(2000, 64, 64);
                 const material = new THREE.MeshBasicMaterial({
                     map: texture,
-                    side: THREE.BackSide // Рендеримо з внутрішньої сторони
+                    side: THREE.BackSide
                 });
                 const starfieldSphere = new THREE.Mesh(geometry, material);
                 this.scene.add(starfieldSphere);
             },
-            undefined, // onProgress callback
+            undefined,
             (error) => {
                 console.error('Error loading starfield texture:', error);
-                // Fallback до процедурного зоряного поля, якщо текстура не завантажилася
                 this.createProceduralStarfield();
             }
         );
     }
 
-    // Додатковий метод для процедурного зоряного поля (як fallback)
     createProceduralStarfield() {
         const vertices = [];
         for (let i = 0; i < 15000; i++) {
@@ -526,74 +328,63 @@ class Universe {
         this.scene.add(this.cosmicDust);
     }
 
+    // Тимчасова функція для створення Сонця та однієї тестової сфери
+    createSunAndTestSphere() {
+        const source = new Sun({ name: "Джерело", description: "Джерело всього світла і життя. Споглядай Його велич.", size: 10 });
+        this.celestialBodies.push(source);
+        this.scene.add(source.group);
+
+        // Додаємо просту білу сферу в центр сцени
+        const testGeometry = new THREE.SphereGeometry(2, 32, 32);
+        const testMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF }); // Білий колір
+        const testSphere = new THREE.Mesh(testGeometry, testMaterial);
+        testSphere.position.set(20, 0, 0); // Розташовуємо її, щоб бачити
+        this.scene.add(testSphere);
+        this.testSphere = testSphere; // Зберігаємо посилання для анімації
+    }
+
     async createCelestialBodies() {
-        // Додаємо try-catch блок для Promise, як радить AI асистент
-        try {
-            const textureLoader = new THREE.TextureLoader();
-            console.log("Attempting to load Credo textures...");
-            const textures = await this.loadCredoTextures(textureLoader);
-            console.log("Credo textures loaded:", textures);
+        // Ця функція поки що не використовується, але залишається для майбутнього відновлення
+        const textureLoader = new THREE.TextureLoader();
+        console.log("Attempting to load Credo textures...");
+        const textures = await this.loadCredoTextures(textureLoader);
+        console.log("Credo textures loaded:", textures);
 
-            const planetsConfig = [
-                { type: 'Archive', name: "Архів", description: "Тут мовчать слова, але говорять віки. Кожен гліф — це доля, кожна орбіта — урок. Прислухайся до тиші, і ти почуєш істину.", color: new THREE.Color(0x4A90E2), size: 2.5, orbit: { a: 25, b: 24, speed: 0.08, axialSpeed: 0.2 }, hasRings: true, ringGlyphColor: new THREE.Color(0xF0E6D2), ringInnerRadius: 3, ringOuterRadius: 4.5, ringDensity: 20000, prompt: "Напиши поетичну замальовку про тишу, що зберігає мудрість, про гліфи, що сяють знанням, і про безкінечний пошук істини у бібліотеці віків.", url: 'books' }, 
-                { type: 'Forge', name: "Кузня", description: "Горнило творіння, де ідеї знаходять форму. Тут народжується нове у вогні натхнення.", color: new THREE.Color(0xD0021B), size: 2.2, orbit: { a: 38, b: 39, speed: 0.06, axialSpeed: 0.1 }, prompt: "Напиши коротку, потужну притчу або вірш про біль творення, красу нової форми, що народжується з хаосу, і про безперервне полум'я натхнення.", url: 'ai-generator' }, 
-                { type: 'Pact', name: "Пакт", description: "Кристал довіри, що сяє прозорістю. Його грані відображають чистоту намірів.", color: new THREE.Color(0xBD10E0), size: 2.0, orbit: { a: 55, b: 55, speed: 0.04, axialSpeed: 0.3 }, prompt: "Створи коротку, елегантну філософську думку або вірш про прозорість, довіру, цінність даного слова та про те, як чистота намірів відбиває світло істини.", url: 'pricing-tariffs' }, 
-                { type: 'Credo', name: "Кредо", description: "Сад буття, що плекає красу зв'язку. Тут кожна душа знаходить свій дім.", color: new THREE.Color(0x2E8B57), size: 2.4, orbit: { a: 68, b: 65, speed: 0.03, axialSpeed: 0.25 }, textures, prompt: "Напиши теплий, надихаючий вірш або коротку замальовку про єдність, красу зв'язків між душами, відчуття дому та гармонію, що народжується у спільноті.", url: 'about-us' }, 
-                
-                { type: 'Planet', name: "Гільдія", description: "Світ співпраці та об'єднання. Тут народжуються ідеї, які єднають душі.", color: new THREE.Color(0x8A2BE2), size: 2.0, orbit: { a: 80, b: 78, speed: 0.02, axialSpeed: 0.15 }, isDouble: true, prompt: "Розкрийте сутність Гільдії: як два світи, що обертаються навколо спільного центру, символізують силу єдності та взаємодоповнення.", url: 'community' },
-                { type: 'Planet', name: "Інсайти", description: "Газовий гігант, у вихорах якого приховані глибокі відкриття та несподівані думки.", color: new THREE.Color(0xFF4500), size: 3.0, orbit: { a: 95, b: 90, speed: 0.015, axialSpeed: 0.08 }, hasGreatSpot: true, greatSpotColor: new THREE.Color(0x8B0000), prompt: "Створи вірш або прозу про раптові спалахи інсайтів, що з'являються з хаосу мислення, як Велика Червона Пляма на газовому гіганті, символізуючи потужність інтелекту.", url: 'insights' }
-            ];
+        const planetsConfig = [
+            { type: 'Archive', name: "Архів", description: "Тут мовчать слова, але говорять віки. Кожен гліф — це доля, кожна орбіта — урок. Прислухайся до тиші, і ти почуєш істину.", color: new THREE.Color(0x4A90E2), size: 2.5, orbit: { a: 25, b: 24, speed: 0.08, axialSpeed: 0.2 }, hasRings: true, ringGlyphColor: new THREE.Color(0xF0E6D2), ringInnerRadius: 3, ringOuterRadius: 4.5, ringDensity: 20000, prompt: "Напиши поетичну замальовку про тишу, що зберігає мудрість, про гліфи, що сяють знанням, і про безкінечний пошук істини у бібліотеці віків.", url: 'books' }, 
+            { type: 'Forge', name: "Кузня", description: "Горнило творіння, де ідеї знаходять форму. Тут народжується нове у вогні натхнення.", color: new THREE.Color(0xD0021B), size: 2.2, orbit: { a: 38, b: 39, speed: 0.06, axialSpeed: 0.1 }, prompt: "Напиши коротку, потужну притчу або вірш про біль творення, красу нової форми, що народжується з хаосу, і про безперервне полум'я натхнення.", url: 'ai-generator' }, 
+            { type: 'Pact', name: "Пакт", description: "Кристал довіри, що сяє прозорістю. Його грані відображають чистоту намірів.", color: new THREE.Color(0xBD10E0), size: 2.0, orbit: { a: 55, b: 55, speed: 0.04, axialSpeed: 0.3 }, prompt: "Створи коротку, елегантну філософську думку або вірш про прозорість, довіру, цінність даного слова та про те, як чистота намірів відбиває світло істини.", url: 'pricing-tariffs' }, 
+            { type: 'Credo', name: "Кредо", description: "Сад буття, що плекає красу зв'язку. Тут кожна душа знаходить свій дім.", color: new THREE.Color(0x2E8B57), size: 2.4, orbit: { a: 68, b: 65, speed: 0.03, axialSpeed: 0.25 }, textures, prompt: "Напиши теплий, надихаючий вірш або коротку замальовку про єдність, красу зв'язків між душами, відчуття дому та гармонію, що народжується у спільноті.", url: 'about-us' }, 
+            
+            { type: 'Planet', name: "Гільдія", description: "Світ співпраці та об'єднання. Тут народжуються ідеї, які єднають душі.", color: new THREE.Color(0x8A2BE2), size: 2.0, orbit: { a: 80, b: 78, speed: 0.02, axialSpeed: 0.15 }, isDouble: true, prompt: "Розкрийте сутність Гільдії: як два світи, що обертаються навколо спільного центру, символізують силу єдності та взаємодоповнення.", url: 'community' },
+            { type: 'Planet', name: "Інсайти", description: "Газовий гігант, у вихорах якого приховані глибокі відкриття та несподівані думки.", color: new THREE.Color(0xFF4500), size: 3.0, orbit: { a: 95, b: 90, speed: 0.015, axialSpeed: 0.08 }, hasGreatSpot: true, greatSpotColor: new THREE.Color(0x8B0000), prompt: "Створи вірш або прозу про раптові спалахи інсайтів, що з'являються з хаосу мислення, як Велика Червона Пляма на газовому гіганті, символізуючи потужність інтелекту.", url: 'insights' }
+        ];
 
-            const source = new Sun({ name: "Джерело", description: "Джерело всього світла і життя. Споглядай Його велич.", size: 10 });
-            this.celestialBodies.push(source);
-            this.scene.add(source.group);
-
-            planetsConfig.forEach(config => {
-                let planet;
-                switch(config.type) {
-                    case 'Archive': planet = new Archive(config); break; 
-                    case 'Forge': planet = new Forge(config); break;
-                    case 'Pact': planet = new Pact(config, this.renderer, this.scene); break;
-                    case 'Credo': planet = new Credo(config); break;
-                    default: 
-                        // Для базового класу Planet (Гільдія, Інсайти)
-                        planet = new Planet(config); 
-                        // Створюємо ShaderMaterial для базових планет
-                        const material = new THREE.ShaderMaterial({ 
-                            uniforms: {
-                                uTime: { value: 0 },
-                                uPulse: { value: 0 },
-                                uColor: { value: config.color || new THREE.Color(0xffffff) } // Fallback до білого
-                            },
-                            vertexShader: Shaders.sharedVertex,
-                            fragmentShader: Shaders.noise + `
-                                uniform float uTime;
-                                uniform float uPulse;
-                                uniform vec3 uColor;
-                                varying vec2 vUv;
-                                void main() {
-                                    float n = fbm(vec3(vUv * 8.0, uTime * 0.05), 5);
-                                    vec3 finalColor = uColor * (0.7 + n * 0.6) * (1.0 + uPulse * 0.2);
-                                    gl_FragColor = vec4(finalColor, 1.0);
-                                }
-                            `
-                        });
-                        planet.mesh = new THREE.Mesh(new THREE.SphereGeometry(planet.size, 64, 64), material);
-                        planet.mesh.userData.celestialBody = planet;
-                        planet.group.add(planet.mesh);
-                }
-                this.celestialBodies.push(planet);
-                this.scene.add(planet.group);
-            });
-        } catch (error) {
-            console.error("An error occurred during createCelestialBodies:", error);
-            // Можна вивести повідомлення на екран користувачу, що 3D-сцена не завантажилася
-            this.loaderManager.showError("Не вдалося завантажити Всесвіт. Спробуйте оновити сторінку.");
-        }
+        // Ця частина коду зараз не активна
+        // planetsConfig.forEach(config => {
+        //     let planet;
+        //     switch(config.type) {
+        //         case 'Archive': planet = new Archive(config); break; 
+        //         case 'Forge': planet = new Forge(config); break;
+        //         case 'Pact': planet = new Pact(config, this.renderer, this.scene); break;
+        //         case 'Credo': planet = new Credo(config); break;
+        //         default: 
+        //             planet = new Planet(config); 
+        //             const material = new THREE.ShaderMaterial({ 
+        //                 uniforms: { uTime: { value: 0 }, uPulse: { value: 0 }, uColor: { value: config.color || new THREE.Color(0xffffff) } },
+        //                 vertexShader: Shaders.sharedVertex,
+        //                 fragmentShader: Shaders.noise + `uniform float uTime; uniform float uPulse; uniform vec3 uColor; varying vec2 vUv; void main() { float n = fbm(vec3(vUv * 8.0, uTime * 0.05), 5); vec3 finalColor = uColor * (0.7 + n * 0.6) * (1.0 + uPulse * 0.2); gl_FragColor = vec4(finalColor, 1.0); }`
+        //             });
+        //             planet.mesh = new THREE.Mesh(new THREE.SphereGeometry(planet.size, 64, 64), material);
+        //             planet.mesh.userData.celestialBody = planet;
+        //             planet.group.add(planet.mesh);
+        //     }
+        //     this.celestialBodies.push(planet);
+        //     this.scene.add(planet.group);
+        // });
     }
 
     async loadCredoTextures(loader) {
-        // Додаємо try-catch для завантаження текстур
         try {
             console.log("Loading Credo day texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png');
             const dayTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png');
@@ -604,7 +395,6 @@ class Universe {
             console.log("Loading Credo cloud texture:", 'https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png');
             const cloudTexture = await loader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c1928c5195caae24ec511_ChatGPT%20Image%2020%20%D0%BB%D0%B8%D0%BF.%202025%20%D1%80.%2C%2000_13_34.png');
 
-            // Замінюємо проблемне посилання на плейсхолдер, щоб уникнути 404 та CORS
             console.log("Loading Credo city lights texture (FIXED URL):", 'https://placehold.co/2048x1024/000000/FFFFFF?text=CityLights');
             const cityLightsTexture = await loader.loadAsync('https://placehold.co/2048x1024/000000/FFFFFF?text=CityLights'); 
             
@@ -615,7 +405,6 @@ class Universe {
             return { day: dayTexture, night: nightTexture, clouds: cloudTexture, cityLights: cityLightsTexture };
         } catch (error) {
             console.error("Error loading Credo textures:", error);
-            // Повертаємо порожні текстури або базові, щоб не зупиняти рендеринг
             return {
                 day: new THREE.Texture(), 
                 night: new THREE.Texture(), 
@@ -627,7 +416,6 @@ class Universe {
 
     addEventListeners() {
         window.addEventListener('resize', () => this.onResize());
-        // Обробка кліків для інтеракції з планетами
         window.addEventListener('mousemove', (event) => {
             const mouse = new THREE.Vector2(
                 (event.clientX / window.innerWidth) * 2 - 1,
@@ -639,19 +427,16 @@ class Universe {
             
             let hoveredBody = null;
             for (const intersect of intersects) {
-                // Перевіряємо, чи це небесне тіло і чи не Сонце
                 if (intersect.object.userData.celestialBody && !intersect.object.userData.celestialBody.isSource) {
                     hoveredBody = intersect.object.userData.celestialBody;
                     break;
                 }
             }
             
-            // Якщо наведено на нове тіло, оновлюємо курсор та UI
             if (hoveredBody) {
-                document.body.style.cursor = 'pointer'; // Змінюємо системний курсор на вказівник
-                // Тут можна додати візуальний ефект наведення на планету в 3D сцені (наприклад, пульсацію)
+                document.body.style.cursor = 'pointer'; 
             } else {
-                document.body.style.cursor = 'none'; // Повертаємо кастомний курсор (приховуючи системний)
+                document.body.style.cursor = 'none'; 
             }
         });
 
@@ -676,18 +461,20 @@ class Universe {
     onResize() {
         this.cameraManager.onResize();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.composer.setSize(window.innerWidth, window.innerHeight);
+        if (this.composer) this.composer.setSize(window.innerWidth, window.innerHeight); // Перевірка на існування composer
     }
     
     updateGodRays() {
-        // Перевіряємо, чи існує Сонце (Джерело)
+        // Ця функція не використовується, коли composer вимкнений
+        // Якщо composer увімкнено, ця логіка буде оновлювати промені
+        if (!this.composer || !this.godRaysPass) return; 
+
         const sunBody = this.celestialBodies.find(b => b.isSource);
         if (!sunBody || !sunBody.mesh) return;
 
         const sunWorldPosition = new THREE.Vector3();
         sunBody.mesh.getWorldPosition(sunWorldPosition);
 
-        // 1. Оновлення God Rays
         const sunScreenPosition = new THREE.Vector3();
         sunBody.mesh.getWorldPosition(sunScreenPosition);
         sunScreenPosition.project(this.cameraManager.camera);
@@ -695,18 +482,15 @@ class Universe {
         this.godRaysPass.material.uniforms.uLightPosition.value.y = (sunScreenPosition.y + 1) * 0.5;
         
         const distanceToSun = this.cameraManager.camera.position.distanceTo(sunWorldPosition);
-        // Регулюємо інтенсивність променів залежно від відстані до Сонця
         this.godRaysPass.material.uniforms.uExposure.value = THREE.MathUtils.lerp(0.4, 0.0, Math.min(distanceToSun / 150, 1.0)); 
 
-        // 2. Оновлення напрямку світла для шейдерів планет
-        const sunDirection = new THREE.Vector3().subVectors(sunWorldPosition, new THREE.Vector3(0,0,0)).normalize(); // Напрямок від центру до Сонця
+        const sunDirection = new THREE.Vector3().subVectors(sunWorldPosition, new THREE.Vector3(0,0,0)).normalize(); 
         this.celestialBodies.forEach(body => {
             if (body.mesh && body.mesh.material && body.mesh.material.uniforms && body.mesh.material.uniforms.uSunDirection) {
                 body.mesh.material.uniforms.uSunDirection.value.copy(sunDirection);
             }
         });
 
-        // 3. Оновлення направленого світла (для об'єктів без кастомних шейдерів)
         this.sunLight.position.copy(sunWorldPosition);
         this.sunLight.target.position.copy(new THREE.Vector3(0,0,0));
         this.sunLight.target.updateMatrixWorld();
@@ -719,13 +503,18 @@ class Universe {
 
         this.celestialBodies.forEach(body => body.update(elapsedTime, delta));
         if (this.nebula) this.nebula.material.uniforms.uTime.value = elapsedTime;
-        if (this.cosmicDust) { // Оновлюємо обертання пилу
+        if (this.cosmicDust) { 
             this.cosmicDust.rotation.y += 0.00005 * delta;
             this.cosmicDust.rotation.x += 0.00002 * delta;
         }
         
         this.cameraManager.update(delta);
-        this.composer.render();
+        // Використовуємо composer.render(), якщо він існує, інакше renderer.render()
+        if (this.composer) {
+            this.composer.render();
+        } else {
+            this.renderer.render(this.scene, this.cameraManager.camera);
+        }
     }
 }
 
@@ -737,27 +526,26 @@ class CameraManager {
     constructor(container) {
         this.container = container;
         this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 4000);
-        this.camera.position.set(0, 70, 180); // Початкова позиція камери
+        this.camera.position.set(0, 70, 180); 
         
         this.controls = new OrbitControls(this.camera, this.container);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.04;
-        this.controls.minDistance = 10; // Мінімальне наближення до центру
-        this.controls.maxDistance = 1000; // Максимальне віддалення
-        this.controls.autoRotate = true; // Автоматичне обертання при запуску
+        this.controls.minDistance = 10; 
+        this.controls.maxDistance = 1000; 
+        this.controls.autoRotate = true; 
         this.controls.autoRotateSpeed = 0.08;
-        this.controls.target.set(0, 0, 0); // Фокус на центрі Всесвіту
+        this.controls.target.set(0, 0, 0); 
     }
 
     focusOn(targetBody) {
         this.controls.autoRotate = false;
-        this.controls.enabled = false; // Вимикаємо ручне управління під час анімації
+        this.controls.enabled = false; 
         
         const targetPosition = new THREE.Vector3();
-        targetBody.group.getWorldPosition(targetPosition); // Отримуємо світові координати планети
+        targetBody.group.getWorldPosition(targetPosition); 
         
-        const distance = targetBody.size * 4; // Відстань для зуму
-        // Визначаємо кінцеву позицію камери, зберігаючи поточний кут погляду
+        const distance = targetBody.size * 4; 
         const endPosition = new THREE.Vector3().subVectors(this.camera.position, this.controls.target).normalize().multiplyScalar(distance).add(targetPosition);
 
         gsap.to(this.camera.position, { 
@@ -769,8 +557,8 @@ class CameraManager {
             duration: 3.5, 
             x: targetPosition.x, y: targetPosition.y, z: targetPosition.z, 
             ease: "cubic.inOut",
-            onUpdate: () => this.controls.update(), // Оновлюємо контролер під час анімації
-            onComplete: () => { this.controls.enabled = true; } // Вмикаємо ручне управління після анімації
+            onUpdate: () => this.controls.update(), 
+            onComplete: () => { this.controls.enabled = true; } 
         });
     }
 
@@ -778,17 +566,17 @@ class CameraManager {
         this.controls.enabled = false;
         gsap.to(this.camera.position, { 
             duration: 3.5, 
-            x: 0, y: 70, z: 180, // Повернення до початкової глобальної позиції
+            x: 0, y: 70, z: 180, 
             ease: "cubic.inOut"
         });
         gsap.to(this.controls.target, { 
             duration: 3.5, 
-            x: 0, y: 0, z: 0, // Повернення фокуса на центр
+            x: 0, y: 0, z: 0, 
             ease: "cubic.inOut",
             onUpdate: () => this.controls.update(),
             onComplete: () => { 
                 this.controls.enabled = true; 
-                this.controls.autoRotate = true; // Знову вмикаємо автообертання
+                this.controls.autoRotate = true; 
             }
         });
     }
@@ -816,8 +604,6 @@ class UIManager {
         this.focusedObject = null;
         this.pulseTween = null;
         this.populateNav();
-        // Raycaster для UI подій обробляється в Universe класі для 3D об'єктів
-        // UI елементи в сайдбарі мають свої власні pointer-events
     }
 
     populateNav() {
@@ -825,7 +611,6 @@ class UIManager {
         this.navContent.innerHTML = html;
         this.navContent.querySelectorAll('li').forEach(li => {
             li.addEventListener('click', (e) => this.onNavClick(e));
-            // Додаємо обробники для візуального ефекту наведення в UI
             li.addEventListener('mouseenter', () => li.classList.add('hovered'));
             li.addEventListener('mouseleave', () => li.classList.remove('hovered'));
         });
@@ -833,12 +618,10 @@ class UIManager {
 
     onNavClick(event) {
         const planetName = event.target.dataset.name;
-        const planetUrl = event.target.dataset.url; // Отримуємо URL планети
+        const planetUrl = event.target.dataset.url; 
         const planet = this.planets.find(p => p.name === planetName);
         if (planet) {
             this.setFocused(planet);
-            // Опціонально: перехід на URL сторінки при кліку на кнопку "УВІЙТИ"
-            // Для навігації через Three.js, ми не переходимо одразу, а чекаємо кліку на кнопку
         }
     }
 
@@ -849,12 +632,10 @@ class UIManager {
         this.cameraManager.focusOn(targetBody);
         this.updateSidebarToFocusedView(targetBody);
         
-        // Оновлення активного елемента в списку
         this.navContent.querySelectorAll('li').forEach(li => {
             li.classList.toggle('active', li.dataset.name === targetBody.name);
         });
 
-        // Пульсація
         if (this.pulseTween) this.pulseTween.kill();
         this.planets.forEach(p => { if(p.mesh && p.mesh.material.uniforms && p.mesh.material.uniforms.uPulse) gsap.to(p.mesh.material.uniforms.uPulse, { value: 0, duration: 0.5 }); });
         if(targetBody.mesh && targetBody.mesh.material.uniforms && targetBody.mesh.material.uniforms.uPulse) {
@@ -888,20 +669,18 @@ class UIManager {
         const enterButton = this.navContent.querySelector('.enter-planet-button');
         if (enterButton) {
             enterButton.addEventListener('click', () => {
-                // Анімація "накопичення енергії" перед переходом
                 gsap.to(enterButton, {
                     scale: 1.05,
                     duration: 0.3,
                     yoyo: true,
                     repeat: 1,
                     onComplete: () => {
-                        // Анімація "занурення" в атмосферу планети
                         gsap.to(this.cameraManager.camera.position, {
                             duration: 2,
-                            z: this.cameraManager.camera.position.z * 0.1, // Швидкий зум всередину
+                            z: this.cameraManager.camera.position.z * 0.1, 
                             ease: 'power2.in',
                             onComplete: () => {
-                                window.location.href = targetBody.url; // Перехід на URL
+                                window.location.href = targetBody.url; 
                             }
                         });
                     }
@@ -934,7 +713,7 @@ class UIManager {
  */
 class ApiService {
     async getWhisper(prompt) {
-        const apiKey = "AIzaSyALcRmtwlSubUpygvp_j9ifowIJV0gzzOI"; // <--- ВАШ GEMINI API KEY ВЖЕ ТУТ!
+        const apiKey = "AIzaSyALcRmtwlSubUpygvp_j9ifowIJV0gzzOI"; 
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         
         const payload = {
@@ -980,7 +759,6 @@ class ApiService {
 class LoaderManager {
     constructor() {
         this.loaderElement = document.getElementById('loader');
-        // Анімація проявлення світла на завантажувальному екрані
         gsap.fromTo(this.loaderElement.querySelector('p'), 
             { opacity: 0, scale: 0.8 }, 
             { opacity: 1, scale: 1, duration: 1.5, ease: 'power2.out', delay: 0.5 }
@@ -991,10 +769,10 @@ class LoaderManager {
             opacity: 0, 
             duration: 1.5, 
             ease: 'power2.inOut', 
-            delay: 0.5, // Затримка перед зникненням
+            delay: 0.5, 
             onComplete: () => {
                 this.loaderElement.style.display = 'none';
-                document.body.style.overflow = 'hidden'; // Забезпечуємо відсутність прокрутки після завантаження
+                document.body.style.overflow = 'hidden'; 
             }
         });
     }
@@ -1007,11 +785,11 @@ class CelestialBody {
     constructor(config) {
         this.name = config.name;
         this.description = config.description;
-        this.prompt = config.prompt || ""; // Для Gemini API
+        this.prompt = config.prompt || ""; 
         this.size = config.size;
         this.isSource = config.isSource || false;
-        this.group = new THREE.Group(); // Група для планети + атмосфери/кілець
-        this.url = config.url || '#'; // URL для переходу на сторінку
+        this.group = new THREE.Group(); 
+        this.url = config.url || '#'; 
     }
     update(elapsedTime, delta) {}
 }
@@ -1026,7 +804,7 @@ class Sun extends CelestialBody {
             fragmentShader: Shaders.noise + Shaders.sun.surface 
         });
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 128, 128), surfaceMaterial);
-        this.mesh.userData.celestialBody = this; // Для Raycasting
+        this.mesh.userData.celestialBody = this; 
         this.group.add(this.mesh);
         
         const coronaMaterial = new THREE.ShaderMaterial({ 
@@ -1037,7 +815,7 @@ class Sun extends CelestialBody {
             transparent: true, 
             depthWrite: false 
         });
-        const corona = new THREE.Mesh(new THREE.SphereGeometry(this.size * 1.6, 128, 128), coronaMaterial); // Збільшена корона
+        const corona = new THREE.Mesh(new THREE.SphereGeometry(this.size * 1.6, 128, 128), coronaMaterial); 
         this.group.add(corona);
     }
     update(elapsedTime) {
@@ -1050,18 +828,17 @@ class Planet extends CelestialBody {
     constructor(config) {
         super(config);
         this.orbit = config.orbit;
-        this.orbit.offset = Math.random() * Math.PI * 2; // Випадковий початковий кут для різноманітності
+        this.orbit.offset = Math.random() * Math.PI * 2; 
 
-        // ***ВАЖЛИВО: ТЕПЕР МЕШ СТВОРЮЄТЬСЯ ТУТ ЛИШЕ ЯКЩО НЕМАЄ СПЕЦІАЛІЗОВАНОГО МАТЕРІАЛУ В КОНФІГУ***
-        // Інакше він буде створений у спеціалізованих класах
-        this.mesh = null; // Забезпечуємо, що mesh спочатку null
+        // Ініціалізуємо mesh як null, він буде створений у дочірніх класах
+        this.mesh = null; 
 
-        // Атмосфера (якщо потрібна)
+        // Атмосфера
         if (config.hasAtmosphere) {
-            const atmosphereMaterial = new THREE.ShaderMaterial({ // Повертаємо ShaderMaterial для атмосфери
+            const atmosphereMaterial = new THREE.ShaderMaterial({ 
                 uniforms: {
                     uSunDirection: { value: new THREE.Vector3(1, 0, 0) },
-                    uAtmosphereColor: { value: config.color || new THREE.Color(0xffffff) } // Fallback до білого
+                    uAtmosphereColor: { value: config.color || new THREE.Color(0xffffff) } 
                 },
                 vertexShader: Shaders.sharedVertex, 
                 fragmentShader: Shaders.noise + `
@@ -1089,9 +866,9 @@ class Planet extends CelestialBody {
         // Кільця (якщо потрібні, не для Архіва)
         if (config.hasRings && config.type !== 'Archive') { 
             const ringGeometry = new THREE.TorusGeometry(this.size * 1.5, 0.2, 16, 100);
-            const ringMaterial = new THREE.MeshBasicMaterial({ color: config.color || new THREE.Color(0xAAAAAA), side: THREE.DoubleSide, transparent: true, opacity: 0.6 }); // Fallback до сірого
+            const ringMaterial = new THREE.MeshBasicMaterial({ color: config.color || new THREE.Color(0xAAAAAA), side: THREE.DoubleSide, transparent: true, opacity: 0.6 }); 
             const rings = new THREE.Mesh(ringGeometry, ringMaterial);
-            rings.rotation.x = Math.PI / 2; // Орієнтуємо кільця горизонтально
+            rings.rotation.x = Math.PI / 2; 
             this.group.add(rings);
         }
     }
@@ -1101,7 +878,6 @@ class Planet extends CelestialBody {
         this.group.position.z = Math.sin(angle) * this.orbit.b;
         if (this.mesh) {
             this.mesh.rotation.y += this.orbit.axialSpeed * delta;
-            // Оновлюємо уніформи шейдерів
             if (this.mesh.material.uniforms && this.mesh.material.uniforms.uTime) {
                 this.mesh.material.uniforms.uTime.value = elapsedTime;
             }
@@ -1129,14 +905,13 @@ class Planet extends CelestialBody {
 // Спеціалізовані класи для планет
 class Archive extends Planet {
     constructor(config) {
-        super(config); // Вызываем родительский конструктор
+        super(config); 
         
-        // Custom material for the geode effect - теперь используем наш шейдер
         const material = new THREE.ShaderMaterial({
             uniforms: {
                 uTime: { value: 0 },
                 uPulse: { value: 0 },
-                uColor: { value: config.color || new THREE.Color(0x4A90E2) } // Fallback
+                uColor: { value: config.color || new THREE.Color(0x4A90E2) } 
             },
             vertexShader: Shaders.sharedVertex,
             fragmentShader: Shaders.noise + Shaders.archive
@@ -1145,14 +920,13 @@ class Archive extends Planet {
         this.mesh.userData.celestialBody = this;
         this.group.add(this.mesh); 
 
-        // Create Rings of Glyphs using InstancedMesh
         if (config.hasRings) {
             const glyphGeometry = new THREE.PlaneGeometry(0.1, 0.1); 
             const glyphMaterial = new THREE.MeshBasicMaterial({ 
-                color: config.ringGlyphColor || new THREE.Color(0xF0E6D2), // Fallback
+                color: config.ringGlyphColor || new THREE.Color(0xF0E6D2), 
                 blending: THREE.AdditiveBlending,
                 transparent: true,
-                opacity: 0.1, // Зроблено ще більш ефірним
+                opacity: 0.1, 
                 side: THREE.DoubleSide 
             });
             
@@ -1187,8 +961,8 @@ class Archive extends Planet {
     
 class Forge extends Planet {
     constructor(config) {
-        super(config); // Вызываем родительский конструктор
-        const material = new THREE.ShaderMaterial({ // Возвращаем ShaderMaterial для Forge
+        super(config); 
+        const material = new THREE.ShaderMaterial({ 
             uniforms: { uTime: { value: 0 }, uPulse: { value: 0 } },
             vertexShader: Shaders.sharedVertex,
             fragmentShader: Shaders.noise + Shaders.forge
@@ -1205,12 +979,12 @@ class Forge extends Planet {
 
 class Pact extends Planet {
     constructor(config, renderer, scene) {
-        super(config); // Вызываем родительский конструктор
+        super(config); 
         this.cubeCamera = new THREE.CubeCamera(1, 2000, new THREE.WebGLCubeRenderTarget(256));
         this.scene = scene;
         this.renderer = renderer;
         
-        const material = new THREE.ShaderMaterial({ // Возвращаем ShaderMaterial для Pact
+        const material = new THREE.ShaderMaterial({ 
             uniforms: {
                 uTime: { value: 0 },
                 uEnvMap: { value: this.cubeCamera.renderTarget.texture }
@@ -1228,20 +1002,20 @@ class Pact extends Planet {
         this.cubeCamera.position.copy(this.group.position);
         this.cubeCamera.update(this.renderer, this.scene);
         this.mesh.visible = true; 
-        this.mesh.material.uniforms.uTime.value = elapsedTime; // Обновляем время для шейдера
+        this.mesh.material.uniforms.uTime.value = elapsedTime; 
     }
 }
 
 class Credo extends Planet {
     constructor(config) {
-        super(config); // Вызываем родительский конструктор
-        const material = new THREE.ShaderMaterial({ // Возвращаем ShaderMaterial для Credo
+        super(config); 
+        const material = new THREE.ShaderMaterial({ 
             uniforms: {
                 uTime: { value: 0 },
-                uDayTexture: { value: config.textures.day || new THREE.Texture() }, // Fallback
-                uNightTexture: { value: config.textures.night || new THREE.Texture() }, // Fallback
-                uCloudTexture: { value: config.textures.clouds || new THREE.Texture() }, // Fallback
-                uCityLightsTexture: { value: config.textures.cityLights || new THREE.Texture() }, // Fallback
+                uDayTexture: { value: config.textures.day || new THREE.Texture() }, 
+                uNightTexture: { value: config.textures.night || new THREE.Texture() }, 
+                uCloudTexture: { value: config.textures.clouds || new THREE.Texture() }, 
+                uCityLightsTexture: { value: config.textures.cityLights || new THREE.Texture() }, 
                 uSunDirection: { value: new THREE.Vector3(1, 0, 0) }
             },
             vertexShader: Shaders.sharedVertex,
@@ -1252,10 +1026,10 @@ class Credo extends Planet {
         this.group.add(this.mesh); 
         
         // Атмосфера
-        const atmosphereMaterial = new THREE.ShaderMaterial({ // Возвращаем ShaderMaterial для атмосферы
+        const atmosphereMaterial = new THREE.ShaderMaterial({ 
             uniforms: {
                 uSunDirection: { value: new THREE.Vector3(1, 0, 0) },
-                uAtmosphereColor: { value: config.color || new THREE.Color(0x4a90e2) } // Fallback
+                uAtmosphereColor: { value: config.color || new THREE.Color(0x4a90e2) } 
             },
             vertexShader: Shaders.sharedVertex, 
             fragmentShader: Shaders.noise + `
