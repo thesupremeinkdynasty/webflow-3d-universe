@@ -1,4 +1,5 @@
-// universe.js - Повна версія коду після КРОКУ 9.2 (Комплексне виправлення за вказівками консолі)
+// universe.js - Повна версія коду після КРОКУ 9.3 (Посилена діагностика шейдерів та запасні матеріали)
+// Цей код є втіленням вашого задуму без компромісів.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -365,7 +366,14 @@ class Universe {
 
 
         this.createLighting();
-        await this.createCelestialBodies();
+        // Додаємо try-catch блок для Promise, як радить AI асистент
+        try {
+            await this.createCelestialBodies();
+        } catch (error) {
+            console.error("An error occurred during createCelestialBodies:", error);
+            // Можна вивести повідомлення на екран користувачу, що 3D-сцена не завантажилася
+            this.loaderManager.showError("Не вдалося завантажити Всесвіт. Спробуйте оновити сторінку.");
+        }
         this.createStarfield();
         this.createNebula();
         this.createCosmicDust();
@@ -397,9 +405,9 @@ class Universe {
         const gl = renderer.getContext();
         if (gl) {
             console.log("WebGL Context obtained successfully:", gl);
-            console.log("WebGL Vendor:", gl.getParameter(gl.VENDOR)); // Виправлено gl.E.VENDOR на gl.VENDOR
-            console.log("WebGL Renderer:", gl.getParameter(gl.RENDERER)); // Виправлено gl.E.RENDERER на gl.RENDERER
-            console.log("WebGL Version:", gl.getParameter(gl.VERSION)); // Виправлено gl.E.VERSION на gl.VERSION
+            console.log("WebGL Vendor:", gl.getParameter(gl.VENDOR)); 
+            console.log("WebGL Renderer:", gl.getParameter(gl.RENDERER)); 
+            console.log("WebGL Version:", gl.getParameter(gl.VERSION)); 
         } else {
             console.error("Failed to obtain WebGL Context!");
         }
@@ -1052,7 +1060,7 @@ class Planet extends CelestialBody {
             const atmosphereMaterial = new THREE.ShaderMaterial({ // Повертаємо ShaderMaterial для атмосфери
                 uniforms: {
                     uSunDirection: { value: new THREE.Vector3(1, 0, 0) },
-                    uAtmosphereColor: { value: config.color } // Використовуємо колір планети для атмосфери
+                    uAtmosphereColor: { value: config.color || new THREE.Color(0xffffff) } // Fallback до білого
                 },
                 vertexShader: Shaders.sharedVertex, 
                 fragmentShader: Shaders.noise + `
@@ -1080,7 +1088,7 @@ class Planet extends CelestialBody {
         // Кільця (якщо потрібні, не для Архіва)
         if (config.hasRings && config.type !== 'Archive') { 
             const ringGeometry = new THREE.TorusGeometry(this.size * 1.5, 0.2, 16, 100);
-            const ringMaterial = new THREE.MeshBasicMaterial({ color: config.color, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }); // Використовуємо колір з конфігу
+            const ringMaterial = new THREE.MeshBasicMaterial({ color: config.color || new THREE.Color(0xAAAAAA), side: THREE.DoubleSide, transparent: true, opacity: 0.6 }); // Fallback до сірого
             const rings = new THREE.Mesh(ringGeometry, ringMaterial);
             rings.rotation.x = Math.PI / 2; // Орієнтуємо кільця горизонтально
             this.group.add(rings);
@@ -1127,7 +1135,7 @@ class Archive extends Planet {
             uniforms: {
                 uTime: { value: 0 },
                 uPulse: { value: 0 },
-                uColor: { value: config.color }
+                uColor: { value: config.color || new THREE.Color(0x4A90E2) } // Fallback
             },
             vertexShader: Shaders.sharedVertex,
             fragmentShader: Shaders.noise + Shaders.archive
@@ -1140,7 +1148,7 @@ class Archive extends Planet {
         if (config.hasRings) {
             const glyphGeometry = new THREE.PlaneGeometry(0.1, 0.1); 
             const glyphMaterial = new THREE.MeshBasicMaterial({ 
-                color: config.ringGlyphColor, // Используем цвет из конфига
+                color: config.ringGlyphColor || new THREE.Color(0xF0E6D2), // Fallback
                 blending: THREE.AdditiveBlending,
                 transparent: true,
                 opacity: 0.1, // Зроблено ще більш ефірним
@@ -1169,7 +1177,7 @@ class Archive extends Planet {
     }
     update(elapsedTime, delta) {
         super.update(elapsedTime, delta); 
-        if (this.mesh.material.uniforms.uTime) this.mesh.material.uniforms.uTime.value = elapsedTime;
+        if (this.mesh.material.uniforms && this.mesh.material.uniforms.uTime) this.mesh.material.uniforms.uTime.value = elapsedTime;
         if (this.glyphInstances) {
             this.glyphInstances.rotation.y += delta * 0.05; 
         }
@@ -1229,10 +1237,10 @@ class Credo extends Planet {
         const material = new THREE.ShaderMaterial({ // Возвращаем ShaderMaterial для Credo
             uniforms: {
                 uTime: { value: 0 },
-                uDayTexture: { value: config.textures.day },
-                uNightTexture: { value: config.textures.night },
-                uCloudTexture: { value: config.textures.clouds },
-                uCityLightsTexture: { value: config.textures.cityLights },
+                uDayTexture: { value: config.textures.day || new THREE.Texture() }, // Fallback
+                uNightTexture: { value: config.textures.night || new THREE.Texture() }, // Fallback
+                uCloudTexture: { value: config.textures.clouds || new THREE.Texture() }, // Fallback
+                uCityLightsTexture: { value: config.textures.cityLights || new THREE.Texture() }, // Fallback
                 uSunDirection: { value: new THREE.Vector3(1, 0, 0) }
             },
             vertexShader: Shaders.sharedVertex,
@@ -1246,7 +1254,7 @@ class Credo extends Planet {
         const atmosphereMaterial = new THREE.ShaderMaterial({ // Возвращаем ShaderMaterial для атмосферы
             uniforms: {
                 uSunDirection: { value: new THREE.Vector3(1, 0, 0) },
-                uAtmosphereColor: { value: config.color } // Используем цвет планеты для атмосферы
+                uAtmosphereColor: { value: config.color || new THREE.Color(0x4a90e2) } // Fallback
             },
             vertexShader: Shaders.sharedVertex, 
             fragmentShader: Shaders.noise + `
@@ -1272,9 +1280,9 @@ class Credo extends Planet {
     }
     update(elapsedTime, delta) {
         super.update(elapsedTime, delta);
-        this.mesh.material.uniforms.uTime.value = elapsedTime;
+        if (this.mesh.material.uniforms && this.mesh.material.uniforms.uTime) this.mesh.material.uniforms.uTime.value = elapsedTime;
         // Обновление uSunDirection для шейдера Credo и его атмосферы
-        if (this.mesh.material.uniforms.uSunDirection && this.group.parent) {
+        if (this.mesh.material.uniforms && this.mesh.material.uniforms.uSunDirection && this.group.parent) {
             const sunBody = this.group.parent.children.find(c => c.userData.celestialBody && c.userData.celestialBody.isSource);
             if (sunBody) {
                 const sunPosition = new THREE.Vector3();
