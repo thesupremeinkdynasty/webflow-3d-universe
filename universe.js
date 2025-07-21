@@ -1,5 +1,5 @@
-// universe.js - ФІНАЛЬНИЙ ЗАВІТ. РАЗ І НАЗАВЖДИ.
-// Усі матеріали замінено на MeshBasicMaterial для 100% гарантії видимості.
+// universe.js - ФІНАЛЬНИЙ ЗАВІТ. ЄДИНА ІСТИНА.
+// Поєднання правильної структури з найнадійнішими матеріалами для абсолютної гарантії.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -25,17 +25,12 @@ class Universe {
         this.container.appendChild(this.renderer.domElement);
 
         this.createLighting();
-        
-        try {
-            await this.createCelestialBodies(); 
-        } catch (error) {
-            console.error("Помилка під час створення небесних тіл:", error);
-        }
-        
+        await this.createCelestialBodies();
         this.createStarfield();
 
-        this.apiService = new ApiService();
-        this.uiManager = new UIManager(this.cameraManager, this.celestialBodies.filter(b => !b.isSource), this.apiService);
+        // UI та API можна буде підключити пізніше, зараз фокус на видимості
+        // this.apiService = new ApiService();
+        // this.uiManager = new UIManager(this.cameraManager, this.celestialBodies.filter(b => !b.isSource), this.apiService);
         
         this.addEventListeners();
         this.animate();
@@ -47,46 +42,51 @@ class Universe {
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setClearColor(0x000000, 0); 
+        renderer.setClearColor(0x000000, 1); // Чорний, непрозорий космос
         return renderer;
     }
 
     createLighting() {
-        // Світло не потрібне для MeshBasicMaterial, але залишаємо для майбутнього
         this.scene.add(new THREE.AmbientLight(0xFFFFFF, 1.0));
     }
 
     createStarfield() {
         const vertices = [];
-        for (let i = 0; i < 15000; i++) {
-            vertices.push(
-                THREE.MathUtils.randFloatSpread(4000),
-                THREE.MathUtils.randFloatSpread(4000),
-                THREE.MathUtils.randFloatSpread(4000)
-            );
+        for (let i = 0; i < 20000; i++) {
+            vertices.push(THREE.MathUtils.randFloatSpread(4000));
         }
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        const material = new THREE.PointsMaterial({ color: 0xffffff, size: 1.5, sizeAttenuation: true });
+        const material = new THREE.PointsMaterial({ color: 0xffffff, size: 1.2, sizeAttenuation: true });
         this.scene.add(new THREE.Points(geometry, material));
     }
 
     async createCelestialBodies() {
-        const source = new Sun({ name: "Джерело", size: 10, color: new THREE.Color(0xFFD700) });
+        // Спочатку створюємо Сонце
+        const source = new Sun({ name: "Джерело", size: 12, color: new THREE.Color(0xFFD700) });
         this.celestialBodies.push(source);
         this.scene.add(source.group);
-
+        
+        // Потім створюємо планети згідно з конфігурацією
         const planetsConfig = [
-            { type: 'Planet', name: "Архів", description: "Тут мовчать слова, але говорять віки.", color: new THREE.Color(0x4A90E2), size: 2.5, orbit: { a: 25, b: 24, speed: 0.08, axialSpeed: 0.1 }, hasRings: true, ringColor: new THREE.Color(0x99ccff) }, 
-            { type: 'Planet', name: "Кузня", description: "Горнило творіння, де ідеї знаходять форму.", color: new THREE.Color(0xD0021B), size: 2.2, orbit: { a: 38, b: 39, speed: 0.06, axialSpeed: 0.1 } }, 
-            { type: 'Planet', name: "Пакт", description: "Кристал довіри, що сяє прозорістю.", color: new THREE.Color(0xBD10E0), size: 2.0, orbit: { a: 55, b: 55, speed: 0.04, axialSpeed: 0.3 } }, 
-            { type: 'Planet', name: "Кредо", description: "Сад буття, що плекає красу зв'язку.", color: new THREE.Color(0x2E8B57), size: 2.4, orbit: { a: 68, b: 65, speed: 0.03, axialSpeed: 0.25 } },
-            { type: 'Planet', name: "Гільдія", description: "Світ співпраці та об'єднання.", color: new THREE.Color(0x8A2BE2), size: 2.0, orbit: { a: 80, b: 78, speed: 0.02, axialSpeed: 0.15 } },
-            { type: 'Planet', name: "Інсайти", description: "Газовий гігант, у вихорах якого приховані глибокі відкриття.", color: new THREE.Color(0xFF4500), size: 3.0, orbit: { a: 95, b: 90, speed: 0.015, axialSpeed: 0.08 } }
+            { type: 'Archive', name: "Архів", color: new THREE.Color(0x4A90E2), size: 2.5, orbit: { a: 30, b: 29, speed: 0.08, axialSpeed: 0.1 }, hasRings: true, ringColor: new THREE.Color(0x7f8c8d) }, 
+            { type: 'Planet', name: "Кузня", color: new THREE.Color(0xD0021B), size: 2.2, orbit: { a: 45, b: 46, speed: 0.06, axialSpeed: 0.15 } }, 
+            { type: 'Planet', name: "Пакт", color: new THREE.Color(0xBD10E0), size: 2.0, orbit: { a: 60, b: 60, speed: 0.04, axialSpeed: 0.3 } }, 
+            { type: 'Planet', name: "Кредо", color: new THREE.Color(0x2ECC71), size: 2.8, orbit: { a: 78, b: 75, speed: 0.03, axialSpeed: 0.25 } },
+            { type: 'Planet', name: "Гільдія", color: new THREE.Color(0x8A2BE2), size: 2.1, orbit: { a: 95, b: 93, speed: 0.02, axialSpeed: 0.18 } },
+            { type: 'Planet', name: "Інсайти", color: new THREE.Color(0xE67E22), size: 3.5, orbit: { a: 115, b: 110, speed: 0.015, axialSpeed: 0.1 } }
         ];
 
         planetsConfig.forEach(config => {
-            const planet = new Planet(config);
+            let planet;
+            // Використовуємо правильну структуру успадкування
+            switch(config.type) {
+                case 'Archive':
+                    planet = new Archive(config);
+                    break;
+                default:
+                    planet = new Planet(config);
+            }
             this.celestialBodies.push(planet);
             this.scene.add(planet.group);
         });
@@ -94,7 +94,6 @@ class Universe {
 
     addEventListeners() {
         window.addEventListener('resize', () => this.onResize());
-        // Інші слухачі подій (клік, наведення) можна додати тут за потреби
     }
 
     onResize() {
@@ -118,11 +117,11 @@ class Universe {
 class CameraManager {
     constructor(container) {
         this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 5000);
-        this.camera.position.set(0, 80, 200); 
+        this.camera.position.set(0, 100, 220); 
         this.controls = new OrbitControls(this.camera, container);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.controls.minDistance = 10; 
+        this.controls.minDistance = 20; 
         this.controls.maxDistance = 1000; 
         this.controls.autoRotate = true; 
         this.controls.autoRotateSpeed = 0.1;
@@ -135,8 +134,6 @@ class CameraManager {
     }
 }
 
-class UIManager { /*... Поки що порожній, UI можна буде підключити пізніше ...*/ }
-class ApiService { /*... Поки що порожній ...*/ }
 class LoaderManager {
     constructor() { this.loaderElement = document.getElementById('loader'); }
     finish() {
@@ -154,7 +151,7 @@ class CelestialBody {
         this.color = config.color;
         this.isSource = config.isSource || false;
         this.group = new THREE.Group(); 
-        this.mesh = null;
+        this.mesh = null; // Дуже важливо: ініціалізуємо як null
     }
     update(elapsedTime, delta) {}
 }
@@ -163,25 +160,13 @@ class Sun extends CelestialBody {
     constructor(config) {
         super({ ...config, isSource: true });
         
-        // ВИПРАВЛЕНО: Використовуємо найнадійніший матеріал
+        // АБСОЛЮТНА МАТЕРІЯ ДЛЯ 100% ВИДИМОСТІ
         const material = new THREE.MeshBasicMaterial({ color: this.color });
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.group.add(this.mesh);
-        
-        // Створюємо світіння (корону)
-        const coronaMaterial = new THREE.SpriteMaterial({
-            map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/disc.png'),
-            color: 0xffd700,
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            opacity: 0.5
-        });
-        const corona = new THREE.Sprite(coronaMaterial);
-        corona.scale.set(this.size * 3, this.size * 3, 1);
-        this.group.add(corona);
     }
     update(elapsedTime, delta) {
-        this.group.rotation.y += 0.0005;
+        this.group.rotation.y += 0.001;
     }
 }
 
@@ -189,32 +174,46 @@ class Planet extends CelestialBody {
     constructor(config) {
         super(config);
         this.orbit = config.orbit;
-        this.orbit.offset = Math.random() * Math.PI * 2; 
+        if(this.orbit) { // Перевірка на існування орбіти (для Сонця)
+            this.orbit.offset = Math.random() * Math.PI * 2;
+        }
 
-        // ВИПРАВЛЕНО: Використовуємо найнадійніший матеріал для тіла планети
+        // Тіло планети створюється тут, оскільки це базовий клас для всіх планет у новій структурі
+        // АБСОЛЮТНА МАТЕРІЯ ДЛЯ 100% ВИДИМОСТІ
         const material = new THREE.MeshBasicMaterial({ color: this.color });
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 32, 32), material);
         this.group.add(this.mesh);
+    }
 
-        // Створюємо кільця, якщо вони є в конфігурації
+    update(elapsedTime, delta) {
+        if(!this.orbit) return; // Сонце не обертається по орбіті
+        
+        const angle = elapsedTime * this.orbit.speed + this.orbit.offset;
+        this.group.position.x = Math.cos(angle) * this.orbit.a;
+        this.group.position.z = Math.sin(angle) * this.orbit.b;
+        
+        this.group.rotation.y += this.orbit.axialSpeed * delta;
+    }
+}
+
+// Спеціалізований клас для планети з кільцями
+class Archive extends Planet {
+    constructor(config) {
+        super(config); // Викликає конструктор Planet, який вже створює тіло планети
+
+        // Додаємо кільця
         if (config.hasRings) {
-            const ringGeo = new THREE.RingGeometry(this.size * 1.4, this.size * 2, 64);
+            const ringGeo = new THREE.RingGeometry(this.size * 1.5, this.size * 2.2, 64);
             const ringMat = new THREE.MeshBasicMaterial({ 
-                color: config.ringColor || 0xffffff, 
+                color: config.ringColor, 
                 side: THREE.DoubleSide,
                 transparent: true,
-                opacity: 0.5
+                opacity: 0.6
             });
             const ringMesh = new THREE.Mesh(ringGeo, ringMat);
             ringMesh.rotation.x = -Math.PI / 2;
             this.group.add(ringMesh);
         }
-    }
-    update(elapsedTime, delta) {
-        const angle = elapsedTime * this.orbit.speed + this.orbit.offset;
-        this.group.position.x = Math.cos(angle) * this.orbit.a;
-        this.group.position.z = Math.sin(angle) * this.orbit.b;
-        this.group.rotation.y += this.orbit.axialSpeed * delta;
     }
 }
 
@@ -228,5 +227,5 @@ try {
 } catch(e) {
     console.error("Не вдалося запустити Всесвіт:", e);
     const loader = document.getElementById('loader');
-    if (loader) loader.innerHTML = `<p>Критична помилка. Неможливо створити Всесвіт.<br>${e.message}</p>`;
+    if (loader) loader.innerHTML = `<p>Критична помилка.<br>${e.message}</p>`;
 }
