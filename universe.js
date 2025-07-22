@@ -7,7 +7,13 @@ import gsap from 'gsap';
 
 class Universe {
     constructor() {
-        this.container = document.getElementById('webgl-canvas'); this.clock = new THREE.Clock(); this.celestialBodies = []; this.raycaster = new THREE.Raycaster(); this.mouse = new THREE.Vector2(-10, -10); this.hoveredPlanet = null; this.init();
+        this.container = document.getElementById('webgl-canvas');
+        this.clock = new THREE.Clock();
+        this.celestialBodies = [];
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2(-10, -10);
+        this.hoveredPlanet = null;
+        this.init();
     }
 
     async init() {
@@ -66,7 +72,11 @@ class Universe {
         try {
             textures = {
                 sun: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687ec73077ae556a394ceaba_8k_sun.jpg') },
-                credo: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png'), clouds: await textureLoader.loadAsync('https://i.imgur.com/K1G4G7a.png'), night: await textureLoader.loadAsync('https://i.imgur.com/k26p1Wp.jpeg')},
+                credo: { 
+                    map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png'),
+                    clouds: await textureLoader.loadAsync('https://i.imgur.com/K1G4G7a.png'),
+                    night: await textureLoader.loadAsync('https://i.imgur.com/k26p1Wp.jpeg'),
+                },
                 archive: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687d0eb009d11e7ccc1190bc_%D0%BF%D0%BB%D0%B0%D0%BD%D0%B5%D1%82%D0%B0%201.png') },
                 forge: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b95e0b0e78f91b89f0e_2.1.png') },
                 pact: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b92e0b0e78f91b89af5_9.1.png') },
@@ -256,7 +266,12 @@ class Planet extends CelestialBody {
             materialProperties.emissiveIntensity = 1.5;
         }
         
-        const material = new THREE.MeshStandardMaterial(materialProperties);
+        let material;
+        if (this.name === "Пакт") {
+            material = new THREE.MeshPhysicalMaterial({ ...materialProperties, transmission: 1.0, ior: 1.5, thickness: 1.5, transparent: true });
+        } else {
+             material = new THREE.MeshStandardMaterial(materialProperties);
+        }
         
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.mesh.userData = { isPlanet: true, parentBody: this };
