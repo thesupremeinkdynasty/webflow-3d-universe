@@ -1,9 +1,9 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import gsap from 'gsap';
+import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
+import { OrbitControls } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/OrbitControls.js';
+import { EffectComposer } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+import gsap from 'https://cdn.skypack.dev/gsap@3.9.1';
 
 class Universe {
     constructor() {
@@ -45,7 +45,7 @@ class Universe {
     }
     
     createLighting() {
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
         const pointLight = new THREE.PointLight(0xffffff, 1.5, 3000);
         this.scene.add(pointLight);
     }
@@ -249,22 +249,20 @@ class Planet extends CelestialBody {
         super(config);
         this.orbit.b = this.orbit.b || this.orbit.a; this.orbit.offset = Math.random() * Math.PI * 2;
         
-        let material;
-        if (this.name === "Пакт") {
-            material = new THREE.MeshPhysicalMaterial({
-                map: this.textures?.map, roughness: 0.1, metalness: 0.2, transmission: 0.9, ior: 1.5, thickness: 1.0, transparent: true, opacity: 0.9
-            });
-        } else {
-             material = new THREE.MeshStandardMaterial({ 
-                map: this.textures?.map,
-                emissiveMap: this.textures?.night,
-                emissive: this.textures?.night ? 0xffffff : 0x000000,
-                emissiveIntensity: 1.5,
-                color: this.textures?.map ? 0xffffff : (this.color || 0xcccccc), 
-                roughness: 0.8, 
-                metalness: 0.2 
-            });
+        const materialProperties = {
+            map: this.textures?.map,
+            color: this.textures?.map ? 0xffffff : (this.color || 0xcccccc),
+            roughness: 0.8,
+            metalness: 0.2
+        };
+
+        if (this.textures?.night) {
+            materialProperties.emissiveMap = this.textures.night;
+            materialProperties.emissive = 0xffffff;
+            materialProperties.emissiveIntensity = 1.5;
         }
+        
+        const material = new THREE.MeshStandardMaterial(materialProperties);
         
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.mesh.userData = { isPlanet: true, parentBody: this };
