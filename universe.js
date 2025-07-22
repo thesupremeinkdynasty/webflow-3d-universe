@@ -1,19 +1,13 @@
-import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
-import { OrbitControls } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/OrbitControls.js';
-import { EffectComposer } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/postprocessing/UnrealBloomPass.js';
-import gsap from 'https://cdn.skypack.dev/gsap@3.9.1';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import gsap from 'gsap';
 
 class Universe {
     constructor() {
-        this.container = document.getElementById('webgl-canvas');
-        this.clock = new THREE.Clock();
-        this.celestialBodies = [];
-        this.raycaster = new THREE.Raycaster();
-        this.mouse = new THREE.Vector2(-10, -10);
-        this.hoveredPlanet = null;
-        this.init();
+        this.container = document.getElementById('webgl-canvas'); this.clock = new THREE.Clock(); this.celestialBodies = []; this.raycaster = new THREE.Raycaster(); this.mouse = new THREE.Vector2(-10, -10); this.hoveredPlanet = null; this.init();
     }
 
     async init() {
