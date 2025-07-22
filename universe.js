@@ -5,57 +5,15 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import gsap from 'gsap';
 
-const Shaders = {
-    noise: `
-        vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
-        vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
-        vec3 fade(vec3 t) {return t*t*t*(t*(t*6.0-15.0)+10.0);}
-
-        float cnoise(vec3 P){
-          vec3 Pi0 = floor(P); vec3 Pi1 = Pi0 + vec3(1.0);
-          Pi0 = mod(Pi0, 289.0); Pi1 = mod(Pi1, 289.0);
-          vec3 Pf0 = fract(P); vec3 Pf1 = Pf0 - vec3(1.0);
-          vec4 ix = vec4(Pi0.x, Pi1.x, Pi0.x, Pi1.x); vec4 iy = vec4(Pi0.yy, Pi1.yy);
-          vec4 iz0 = Pi0.zzzz; vec4 iz1 = Pi1.zzzz;
-          vec4 ixy = permute(permute(ix) + iy);
-          vec4 ixy0 = permute(ixy + iz0); vec4 ixy1 = permute(ixy + iz1);
-          vec4 gx0 = ixy0 / 7.0; vec4 gy0 = fract(floor(gx0) / 7.0) - 0.5;
-          gx0 = fract(gx0); vec4 gz0 = vec4(0.5) - abs(gx0) - abs(gy0);
-          vec4 sz0 = step(gz0, vec4(0.0));
-          gx0 -= sz0 * (step(0.0, gx0) - 0.5); gy0 -= sz0 * (step(0.0, gy0) - 0.5);
-          vec4 gx1 = ixy1 / 7.0; vec4 gy1 = fract(floor(gx1) / 7.0) - 0.5;
-          gx1 = fract(gx1); vec4 gz1 = vec4(0.5) - abs(gx1) - abs(gy1);
-          vec4 sz1 = step(gz1, vec4(0.0));
-          gx1 -= sz1 * (step(0.0, gx1) - 0.5); gy1 -= sz1 * (step(0.0, gy1) - 0.5);
-          vec3 g000 = vec3(gx0.x,gy0.x,gz0.x); vec3 g100 = vec3(gx0.y,gy0.y,gz0.y);
-          vec3 g010 = vec3(gx0.z,gy0.z,gz0.z); vec3 g110 = vec3(gx0.w,gy0.w,gz0.w);
-          vec3 g001 = vec3(gx1.x,gy1.x,gz1.x); vec3 g101 = vec3(gx1.y,gy1.y,gz1.y);
-          vec3 g011 = vec3(gx1.z,gy1.z,gz1.z); vec3 g111 = vec3(gx1.w,gy1.w,gz1.w);
-          vec4 norm0 = taylorInvSqrt(vec4(dot(g000, g000), dot(g010, g010), dot(g100, g100), dot(g110, g110)));
-          g000 *= norm0.x; g010 *= norm0.y; g100 *= norm0.z; g110 *= norm0.w;
-          vec4 norm1 = taylorInvSqrt(vec4(dot(g001, g001), dot(g011, g011), dot(g101, g101), dot(g111, g111)));
-          g001 *= norm1.x; g011 *= norm1.y; g101 *= norm1.z; g111 *= norm1.w;
-          float n000 = dot(g000, Pf0); float n100 = dot(g100, vec3(Pf1.x, Pf0.yz));
-          float n010 = dot(g010, vec3(Pf0.x, Pf1.y, Pf0.z)); float n110 = dot(g110, vec3(Pf1.xy, Pf0.z));
-          float n001 = dot(g001, vec3(Pf0.xy, Pf1.z)); float n101 = dot(g101, vec3(Pf1.x, Pf0.y, Pf1.z));
-          float n011 = dot(g011, vec3(Pf0.x, Pf1.yz)); float n111 = dot(g111, Pf1);
-          vec3 fade_xyz = fade(Pf0);
-          vec4 n_z = mix(vec4(n000, n100, n010, n110), vec4(n001, n101, n011, n111), fade_xyz.z);
-          vec2 n_yz = mix(n_z.xy, n_z.zw, fade_xyz.y);
-          float n_xyz = mix(n_yz.x, n_yz.y, fade_xyz.x); 
-          return 2.2 * n_xyz;
-        }
-        float fbm(vec3 p) { float f = 0.0; f += 0.50 * cnoise(p); p *= 2.02; f += 0.25 * cnoise(p); return f / 0.75; }`,
-    sharedVertex: `varying vec2 vUv; varying vec3 vNormal; varying vec3 vPosition; void main() { vUv = uv; vPosition = position; vNormal = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    sun: {
-        surface: `uniform float uTime; varying vec2 vUv; void main() { float t = uTime * 0.1; vec3 p = vec3(vUv * 4.0, t); float n = fbm(p); float s = fbm(vec3(p.xy, p.z - t * 2.0)); float final = mix(n, s, 0.6); vec3 color = mix(vec3(1.0, 0.2, 0.0), vec3(1.0, 0.9, 0.3), final); float i = pow(final, 2.0) * 1.5 + 1.0 + sin(uTime * 2.0) * 0.1; gl_FragColor = vec4(color * i, 1.0); }`,
-        corona: `uniform float uTime; varying vec3 vNormal; void main() { float i = pow(0.8 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0); float n = fbm(vNormal * 3.0 + uTime * 0.2); i *= (0.8 + n * 0.2); gl_FragColor = vec4(vec3(1.0, 0.6, 0.2) * i, 1.0); }`
-    },
-};
-
 class Universe {
     constructor() {
-        this.container = document.getElementById('webgl-canvas'); this.clock = new THREE.Clock(); this.celestialBodies = []; this.raycaster = new THREE.Raycaster(); this.mouse = new THREE.Vector2(-10, -10); this.hoveredPlanet = null; this.init();
+        this.container = document.getElementById('webgl-canvas');
+        this.clock = new THREE.Clock();
+        this.celestialBodies = [];
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2(-10, -10);
+        this.hoveredPlanet = null;
+        this.init();
     }
 
     async init() {
@@ -133,7 +91,7 @@ class Universe {
         
         const planetsConfig = [
             { name: "Архів", description: "Гігантська планета з кільцями.", size: 3.5, orbit: { a: 70, speed: 0.08, axialSpeed: 0.1 }, hasRings: true, textures: textures.archive },
-            { name: "Кузня", description: "Вулканічна планета.", size: 3.0, orbit: { a: 110, speed: 0.06, axialSpeed: 0.15 }, textures: textures.forge, color: 0x552211 },
+            { name: "Кузня", description: "Вулканічна планета.", size: 3.0, orbit: { a: 110, speed: 0.06, axialSpeed: 0.15 }, textures: textures.forge },
             { name: "Пакт", description: "Кришталева, ідеально огранена планета.", size: 2.8, orbit: { a: 155, speed: 0.04, axialSpeed: 0.3 }, textures: textures.pact },
             { name: "Кредо", description: "Землеподібна планета з океанами та континентами.", size: 4.0, orbit: { a: 200, speed: 0.03, axialSpeed: 0.25 }, textures: textures.credo, hasMoon: true },
             { name: "Гільдія", description: "Світ співпраці та об'єднання.", size: 2.5, orbit: { a: 240, speed: 0.02, axialSpeed: 0.18 }, textures: textures.guild },
@@ -300,8 +258,7 @@ class Planet extends CelestialBody {
         const materialProperties = {
             map: this.textures?.map,
             color: this.textures?.map ? 0xffffff : (this.color || 0xcccccc),
-            roughness: 0.8,
-            metalness: 0.2
+            roughness: 0.8, metalness: 0.2
         };
         if(this.textures?.night) {
             materialProperties.emissiveMap = this.textures.night;
@@ -312,6 +269,8 @@ class Planet extends CelestialBody {
         let material;
         if (this.name === "Пакт") {
             material = new THREE.MeshPhysicalMaterial({ ...materialProperties, transmission: 1.0, ior: 1.5, thickness: 1.5, transparent: true });
+        } else if (this.name === "Кузня") {
+            material = new THREE.MeshStandardMaterial({ ...materialProperties, emissiveMap: this.textures?.map, emissive: 0xff6600, emissiveIntensity: 1.2 });
         } else {
              material = new THREE.MeshStandardMaterial(materialProperties);
         }
@@ -356,4 +315,3 @@ try {
     const cursorDot = document.getElementById('cursor-dot');
     window.addEventListener('mousemove', e => gsap.to(cursorDot, { duration: 0.3, x: e.clientX, y: e.clientY, ease: 'power2.out' }));
 } catch(e) { console.error("Критична помилка Всесвіту:", e); }
-</script>
