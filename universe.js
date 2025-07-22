@@ -7,7 +7,13 @@ import gsap from 'https://cdn.skypack.dev/gsap@3.9.1';
 
 class Universe {
     constructor() {
-        this.container = document.getElementById('webgl-canvas'); this.clock = new THREE.Clock(); this.celestialBodies = []; this.raycaster = new THREE.Raycaster(); this.mouse = new THREE.Vector2(-10, -10); this.hoveredPlanet = null; this.init();
+        this.container = document.getElementById('webgl-canvas');
+        this.clock = new THREE.Clock();
+        this.celestialBodies = [];
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2(-10, -10);
+        this.hoveredPlanet = null;
+        this.init();
     }
 
     async init() {
@@ -45,7 +51,7 @@ class Universe {
     }
     
     createLighting() {
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
         const pointLight = new THREE.PointLight(0xffffff, 1.5, 3000);
         this.scene.add(pointLight);
     }
@@ -72,6 +78,8 @@ class Universe {
                     night: await textureLoader.loadAsync('https://i.imgur.com/k26p1Wp.jpeg'),
                 },
                 archive: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687d0eb009d11e7ccc1190bc_%D0%BF%D0%BB%D0%B0%D0%BD%D0%B5%D1%82%D0%B0%201.png') },
+                forge: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b95e0b0e78f91b89f0e_2.1.png') },
+                pact: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b92e0b0e78f91b89af5_9.1.png') },
                 guild: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b94b53ba90dbc022678_8.1.png') },
                 insights: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b93f5194ad7643a11b9_10.1.png') },
             };
@@ -83,8 +91,8 @@ class Universe {
         
         const planetsConfig = [
             { name: "Архів", description: "Гігантська планета з кільцями.", size: 3.5, orbit: { a: 70, speed: 0.08, axialSpeed: 0.1 }, hasRings: true, textures: textures.archive },
-            { name: "Кузня", description: "Вулканічна планета.", size: 3.0, orbit: { a: 110, speed: 0.06, axialSpeed: 0.15 }, color: 0x552211 },
-            { name: "Пакт", description: "Кришталева, ідеально огранена планета.", size: 2.8, orbit: { a: 155, speed: 0.04, axialSpeed: 0.3 } },
+            { name: "Кузня", description: "Вулканічна планета.", size: 3.0, orbit: { a: 110, speed: 0.06, axialSpeed: 0.15 }, textures: textures.forge },
+            { name: "Пакт", description: "Кришталева, ідеально огранена планета.", size: 2.8, orbit: { a: 155, speed: 0.04, axialSpeed: 0.3 }, textures: textures.pact },
             { name: "Кредо", description: "Землеподібна планета з океанами та континентами.", size: 4.0, orbit: { a: 200, speed: 0.03, axialSpeed: 0.25 }, textures: textures.credo, hasMoon: true },
             { name: "Гільдія", description: "Світ співпраці та об'єднання.", size: 2.5, orbit: { a: 240, speed: 0.02, axialSpeed: 0.18 }, textures: textures.guild },
             { name: "Інсайти", description: "Газовий гігант з глибокими відкриттями.", size: 5.0, orbit: { a: 280, speed: 0.015, axialSpeed: 0.1 }, textures: textures.insights },
@@ -226,7 +234,7 @@ class Sun extends CelestialBody {
         const material = new THREE.MeshBasicMaterial({ map: this.textures?.map });
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 128, 128), material);
         this.group.add(this.mesh);
-        
+
         const coronaMat = new THREE.SpriteMaterial({
             map: new THREE.TextureLoader().load('https://i.imgur.com/yla3d1Y.png'),
             color: 0xffeab3, transparent: true, blending: THREE.AdditiveBlending, opacity: 0.7
