@@ -5,18 +5,15 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import gsap from 'gsap';
 
-const Shaders = {
-    noise: `
-        vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
-        float snoise(vec3 v){ const vec2 C = vec2(1.0/6.0, 1.0/3.0) ; const vec4 D = vec4(0.0, 0.5, 1.0, 2.0); vec3 i  = floor(v + dot(v, C.yyy) ); vec3 x0 = v - i + dot(i, C.xxx) ; vec3 g = step(x0.yzx, x0.xyz); vec3 l = 1.0 - g; vec3 i1 = min( g.xyz, l.zxy ); vec3 i2 = max( g.xyz, l.zxy ); vec3 x1 = x0 - i1 + C.xxx; vec3 x2 = x0 - i2 + C.yyy; vec3 x3 = x0 - D.yyy; i = mod(i, 289.0); vec4 p = permute( permute( permute( i.z + vec4(0.0, i1.z, i2.z, 1.0 )) + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) + i.x + vec4(0.0, i1.x, i2.x, 1.0 )); vec3 ns = D.wyz - D.xzx; vec4 j = p - 49.0 * floor(p * ns.z * ns.z); vec4 x_ = floor(j * ns.z); vec4 y_ = floor(j - 7.0 * x_ ); vec4 x = x_ * ns.x + ns.yyyy; vec4 y = y_ * ns.x + ns.yyyy; vec4 h = 1.0 - abs(x) - abs(y); vec4 b0 = vec4( x.xy, y.xy ); vec4 b1 = vec4( x.zw, y.zw ); vec4 s0 = floor(b0)*2.0 + 1.0; vec4 s1 = floor(b1)*2.0 + 1.0; vec4 sh = -step(h, vec4(0.0)); vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy; vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww; vec3 p0 = vec3(a0.xy,h.x); vec3 p1 = vec3(a0.zw,h.y); vec3 p2 = vec3(a1.xy,h.z); vec3 p3 = vec3(a1.zw,h.w); vec4 norm = inversesqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3))); p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w; vec4 m = max(0.5 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0); m = m * m; return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) ); }
-        float fbm(vec3 p) { float f = 0.0; f += 0.50 * snoise(p); p *= 2.02; f += 0.25 * snoise(p); return f / 0.75; }`,
-    sharedVertex: `varying vec3 vNormal; void main() { vNormal = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    sunCorona: `uniform float uTime; varying vec3 vNormal; void main() { float i = pow(0.8 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0); float n = fbm(vNormal * 3.0 + uTime * 0.2); i *= (0.8 + n * 0.2); gl_FragColor = vec4(vec3(1.0, 0.6, 0.2) * i * (1.0 + sin(uTime * 0.5) * 0.2), 1.0); }`
-};
-
 class Universe {
     constructor() {
-        this.container = document.getElementById('webgl-canvas'); this.clock = new THREE.Clock(); this.celestialBodies = []; this.raycaster = new THREE.Raycaster(); this.mouse = new THREE.Vector2(-10, -10); this.hoveredPlanet = null; this.init();
+        this.container = document.getElementById('webgl-canvas');
+        this.clock = new THREE.Clock();
+        this.celestialBodies = [];
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2(-10, -10);
+        this.hoveredPlanet = null;
+        this.init();
     }
 
     async init() {
@@ -62,7 +59,7 @@ class Universe {
     async createEnvironment() {
         const textureLoader = new THREE.TextureLoader();
         try {
-            const starfieldTexture = await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687d3cc795859f0d3a3b488f_8k_stars_milky_way.jpg');
+            const starfieldTexture = await textureLoader.loadAsync('https://i.imgur.com/6X2s72x.jpeg');
             const bgGeo = new THREE.SphereGeometry(3000, 64, 64);
             const bgMat = new THREE.MeshBasicMaterial({ map: starfieldTexture, side: THREE.BackSide });
             this.scene.add(new THREE.Mesh(bgGeo, bgMat));
@@ -238,22 +235,18 @@ class Sun extends CelestialBody {
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 128, 128), material);
         this.group.add(this.mesh);
 
-        const coronaMat = new THREE.ShaderMaterial({ 
-            uniforms: { uTime: { value: 0 } }, 
-            vertexShader: Shaders.sharedVertex, 
-            fragmentShader: `${Shaders.noise}\n${Shaders.sun.corona}`, 
-            blending: THREE.AdditiveBlending, 
-            transparent: true, 
-            side: THREE.BackSide 
+        const coronaMat = new THREE.SpriteMaterial({
+            map: new THREE.TextureLoader().load('https://i.imgur.com/yla3d1Y.png'),
+            color: 0xffeab3, transparent: true, blending: THREE.AdditiveBlending, opacity: 0.7
         });
-        this.corona = new THREE.Mesh(new THREE.SphereGeometry(this.size * 1.5, 128, 128), coronaMat);
+        this.corona = new THREE.Sprite(coronaMat);
+        this.corona.scale.set(this.size * 3.5, this.size * 3.5, 1);
         this.group.add(this.corona);
     }
     update(elapsedTime, delta){ 
         this.group.rotation.y += delta * 0.02;
-        if (this.corona.material.uniforms) {
-            this.corona.material.uniforms.uTime.value = elapsedTime;
-        }
+        this.corona.material.rotation += delta * 0.01;
+        this.corona.scale.setScalar(this.size * 3.5 * (1 + Math.sin(elapsedTime * 0.5) * 0.05));
     }
 }
 
@@ -265,7 +258,8 @@ class Planet extends CelestialBody {
         const materialProperties = {
             map: this.textures?.map,
             color: this.textures?.map ? 0xffffff : (this.color || 0xcccccc),
-            roughness: 0.8, metalness: 0.2
+            roughness: 0.8,
+            metalness: 0.2
         };
         if(this.textures?.night) {
             materialProperties.emissiveMap = this.textures.night;
@@ -276,7 +270,10 @@ class Planet extends CelestialBody {
         let material;
         if (this.name === "Пакт") {
             material = new THREE.MeshPhysicalMaterial({ ...materialProperties, transmission: 1.0, ior: 1.5, thickness: 1.5, transparent: true });
-        } else {
+        } else if (this.name === "Кузня") {
+            material = new THREE.MeshStandardMaterial({ ...materialProperties, emissiveMap: this.textures?.map, emissive: 0xff6600, emissiveIntensity: 1.2 });
+        }
+        else {
              material = new THREE.MeshStandardMaterial(materialProperties);
         }
         
