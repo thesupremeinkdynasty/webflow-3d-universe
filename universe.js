@@ -7,13 +7,7 @@ import gsap from 'gsap';
 
 class Universe {
     constructor() {
-        this.container = document.getElementById('webgl-canvas');
-        this.clock = new THREE.Clock();
-        this.celestialBodies = [];
-        this.raycaster = new THREE.Raycaster();
-        this.mouse = new THREE.Vector2(-10, -10);
-        this.hoveredPlanet = null;
-        this.init();
+        this.container = document.getElementById('webgl-canvas'); this.clock = new THREE.Clock(); this.celestialBodies = []; this.raycaster = new THREE.Raycaster(); this.mouse = new THREE.Vector2(-10, -10); this.hoveredPlanet = null; this.init();
     }
 
     async init() {
@@ -51,7 +45,7 @@ class Universe {
     }
     
     createLighting() {
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
         const pointLight = new THREE.PointLight(0xffffff, 1.5, 3000);
         this.scene.add(pointLight);
     }
@@ -270,10 +264,7 @@ class Planet extends CelestialBody {
         let material;
         if (this.name === "Пакт") {
             material = new THREE.MeshPhysicalMaterial({ ...materialProperties, transmission: 1.0, ior: 1.5, thickness: 1.5, transparent: true });
-        } else if (this.name === "Кузня") {
-            material = new THREE.MeshStandardMaterial({ ...materialProperties, emissiveMap: this.textures?.map, emissive: 0xff6600, emissiveIntensity: 1.2 });
-        }
-        else {
+        } else {
              material = new THREE.MeshStandardMaterial(materialProperties);
         }
         
