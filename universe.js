@@ -63,7 +63,7 @@ class Universe {
             const bgGeo = new THREE.SphereGeometry(3000, 64, 64);
             const bgMat = new THREE.MeshBasicMaterial({ map: starfieldTexture, side: THREE.BackSide });
             this.scene.add(new THREE.Mesh(bgGeo, bgMat));
-        } catch(e) { console.error("Could not load starfield texture:", e); }
+        } catch(e) { console.error("Не вдалося завантажити зоряне небо:", e); }
     }
 
     async createCelestialBodies() {
@@ -72,18 +72,10 @@ class Universe {
         try {
             textures = {
                 sun: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687ec73077ae556a394ceaba_8k_sun.jpg') },
-                credo: { 
-                    map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png'),
-                    clouds: await textureLoader.loadAsync('https://i.imgur.com/K1G4G7a.png'),
-                    night: await textureLoader.loadAsync('https://i.imgur.com/k26p1Wp.jpeg'),
-                },
+                credo: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png') },
                 archive: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687d0eb009d11e7ccc1190bc_%D0%BF%D0%BB%D0%B0%D0%BD%D0%B5%D1%82%D0%B0%201.png') },
-                forge: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b95e0b0e78f91b89f0e_2.1.png') },
-                pact: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b92e0b0e78f91b89af5_9.1.png') },
-                guild: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b94b53ba90dbc022678_8.1.png') },
-                insights: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b93f5194ad7643a11b9_10.1.png') },
             };
-        } catch (e) { console.error("Could not load planet textures:", e); }
+        } catch (e) { console.error("Не вдалося завантажити текстури:", e); }
         
         const source = new Sun({ name: "Джерело", size: 25, textures: textures.sun });
         this.celestialBodies.push(source);
@@ -91,11 +83,7 @@ class Universe {
         
         const planetsConfig = [
             { name: "Архів", description: "Гігантська планета з кільцями.", size: 3.5, orbit: { a: 70, speed: 0.08, axialSpeed: 0.1 }, hasRings: true, textures: textures.archive },
-            { name: "Кузня", description: "Вулканічна планета.", size: 3.0, orbit: { a: 110, speed: 0.06, axialSpeed: 0.15 }, textures: textures.forge },
-            { name: "Пакт", description: "Кришталева, ідеально огранена планета.", size: 2.8, orbit: { a: 155, speed: 0.04, axialSpeed: 0.3 }, textures: textures.pact },
-            { name: "Кредо", description: "Землеподібна планета з океанами та континентами.", size: 4.0, orbit: { a: 200, speed: 0.03, axialSpeed: 0.25 }, textures: textures.credo, hasMoon: true },
-            { name: "Гільдія", description: "Світ співпраці та об'єднання.", size: 2.5, orbit: { a: 240, speed: 0.02, axialSpeed: 0.18 }, textures: textures.guild },
-            { name: "Інсайти", description: "Газовий гігант з глибокими відкриттями.", size: 5.0, orbit: { a: 280, speed: 0.015, axialSpeed: 0.1 }, textures: textures.insights },
+            { name: "Кредо", description: "Землеподібна планета з океанами та континентами.", size: 4.0, orbit: { a: 120, speed: 0.03, axialSpeed: 0.25 }, textures: textures.credo, hasMoon: true },
         ];
         planetsConfig.forEach(config => {
             const planet = new Planet(config);
@@ -257,15 +245,10 @@ class Planet extends CelestialBody {
         
         const materialProperties = {
             map: this.textures?.map,
-            color: this.textures?.map ? 0xffffff : (this.color || 0xcccccc),
+            color: this.textures?.map ? 0xffffff : 0xcccccc,
             roughness: 0.8,
             metalness: 0.2
         };
-        if(this.textures?.night) {
-            materialProperties.emissiveMap = this.textures.night;
-            materialProperties.emissive = 0xffffff;
-            materialProperties.emissiveIntensity = 1.5;
-        }
         
         const material = new THREE.MeshStandardMaterial(materialProperties);
         
@@ -273,11 +256,6 @@ class Planet extends CelestialBody {
         this.mesh.userData = { isPlanet: true, parentBody: this };
         this.group.add(this.mesh);
 
-        if (this.name === "Кредо" && this.textures?.clouds) {
-            const cloudMat = new THREE.MeshLambertMaterial({ map: this.textures.clouds, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
-            this.cloudMesh = new THREE.Mesh(new THREE.SphereGeometry(this.size * 1.03, 64, 64), cloudMat);
-            this.group.add(this.cloudMesh);
-        }
         if (config.hasRings) this.createRings();
         if (config.hasMoon) this.createMoon();
     }
@@ -296,7 +274,6 @@ class Planet extends CelestialBody {
         const angle = elapsedTime * this.orbit.speed + this.orbit.offset;
         this.group.position.set(Math.cos(angle) * this.orbit.a, 0, Math.sin(angle) * this.orbit.b);
         this.group.rotation.y += this.orbit.axialSpeed * delta;
-        if (this.cloudMesh) this.cloudMesh.rotation.y += delta * 0.02;
         if (this.moon) {
             const moonAngle = elapsedTime * 0.5;
             this.moon.position.set(Math.cos(moonAngle) * this.size * 2.5, 0, Math.sin(moonAngle) * this.size * 2.5);
