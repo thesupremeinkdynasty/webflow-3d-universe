@@ -1,3 +1,11 @@
+// =================================================================
+// Архітектор: The Supreme Ink Dynasty & Gemini
+// Версія: 1.0 (Фаза I - Архітектура Всесвіту - Завершено)
+// Опис: Фіналізований код для створення 3D-сцени,
+// що включає Джерело, планети з надійними текстурами
+// та процедурний зоряний фон.
+// =================================================================
+
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -5,10 +13,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import gsap from 'gsap';
 
-// =================================================================
-// КРОК 1: РЕМОНТ ТЕКСТУРНИХ ШЛЯХІВ
-// Оновлені, надійні посилання на текстури з того ж репозиторію.
-// =================================================================
+// --- Архітектурний Центр: Конфігурація Сонячної Системи ---
 const PLANET_DATA = [
     {
         name: "Кредо",
@@ -44,6 +49,9 @@ const PLANET_DATA = [
     }
 ];
 
+/**
+ * Головний клас, що керує всім Всесвітом.
+ */
 class Universe {
     constructor() {
         this.container = document.getElementById('webgl-canvas');
@@ -53,8 +61,6 @@ class Universe {
         }
         this.clock = new THREE.Clock();
         this.celestialBodies = [];
-        this.raycaster = new THREE.Raycaster();
-        this.mouse = new THREE.Vector2(-10, -10);
         this.init();
     }
 
@@ -65,7 +71,6 @@ class Universe {
         this.renderer = this.createRenderer();
         
         this.createLighting();
-        // Запускаємо оновлений, синтезований метод створення середовища
         this.createEnvironment();
         await this.createCelestialBodies();
         
@@ -75,7 +80,6 @@ class Universe {
     }
 
     createRenderer() {
-        // ... (код без змін)
         const renderer = new THREE.WebGLRenderer({ canvas: this.container, antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -86,7 +90,6 @@ class Universe {
     }
 
     createComposer() {
-        // ... (код без змін)
         const composer = new EffectComposer(this.renderer);
         composer.addPass(new RenderPass(this.scene, this.cameraManager.camera));
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.5, 0.8);
@@ -95,41 +98,25 @@ class Universe {
     }
     
     createLighting() {
-        // ... (код без змін)
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
         const pointLight = new THREE.PointLight(0xffffff, 1.5, 4000);
         this.scene.add(pointLight);
     }
 
-    // =================================================================
-    // КРОК 2: СИНТЕЗ ІДЕЇ ПРОЦЕДУРНОГО ФОНУ
-    // Замість завантаження великої текстури, ми генеруємо зірки.
-    // Це ефективно і відповідає нашій філософії створення, а не споживання.
-    // =================================================================
     createEnvironment() {
         const starsGeometry = new THREE.BufferGeometry();
         const starsCount = 5000;
         const posArray = new Float32Array(starsCount * 3);
-
         for (let i = 0; i < starsCount * 3; i++) {
             posArray[i] = (Math.random() - 0.5) * 2000;
         }
-
         starsGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-        const starsMaterial = new THREE.PointsMaterial({
-            size: 0.7,
-            color: 0xffffff,
-            transparent: true,
-            blending: THREE.AdditiveBlending
-        });
+        const starsMaterial = new THREE.PointsMaterial({ size: 0.7, color: 0xffffff });
         const starField = new THREE.Points(starsGeometry, starsMaterial);
         this.scene.add(starField);
     }
 
-
     async createCelestialBodies() {
-        // ... (код створення планет і сонця залишається майже без змін,
-        // але тепер він буде працювати, оскільки посилання вірні)
         const textureLoader = new THREE.TextureLoader(this.loaderManager.manager);
         
         try {
@@ -152,19 +139,16 @@ class Universe {
     }
 
     addEventListeners() {
-        // ... (код без змін)
         window.addEventListener('resize', () => this.onResize());
     }
 
     onResize() {
-        // ... (код без змін)
         this.cameraManager.onResize();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.composer.setSize(window.innerWidth, window.innerHeight);
     }
     
     animate() {
-        // ... (код без змін)
         requestAnimationFrame(() => this.animate());
         const delta = this.clock.getDelta();
         const elapsedTime = this.clock.getElapsedTime();
@@ -174,24 +158,27 @@ class Universe {
     }
 }
 
-// Всі класи (CameraManager, UIManager, LoaderManager, CelestialBody, Sun, Planet)
-// залишаються такими ж, як у попередньому кроці.
-// Цей код просто повторюється тут для повноти файлу.
-
+/**
+ * Керує камерою та елементами управління (OrbitControls).
+ */
 class CameraManager {
     constructor(container) {
         this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 6000);
         this.camera.position.set(0, 150, 450);
         this.controls = new OrbitControls(this.camera, container);
-        this.controls.enableDamping = true; this.controls.autoRotate = true; this.controls.autoRotateSpeed = 0.1;
-        this.controls.minDistance = 50; this.controls.maxDistance = 1000;
+        this.controls.enableDamping = true; 
+        this.controls.autoRotate = true; 
+        this.controls.autoRotateSpeed = 0.1;
+        this.controls.minDistance = 50; 
+        this.controls.maxDistance = 1000;
     }
     update(delta) { this.controls.update(delta); }
     onResize() { this.camera.aspect = window.innerWidth / window.innerHeight; this.camera.updateProjectionMatrix(); }
 }
 
-class UIManager { constructor() {} }
-
+/**
+ * Керує екраном завантаження.
+ */
 class LoaderManager {
     constructor() {
         this.manager = new THREE.LoadingManager();
@@ -204,6 +191,9 @@ class LoaderManager {
     }
 }
 
+/**
+ * Базовий клас для всіх небесних тіл.
+ */
 class CelestialBody {
     constructor(config) {
         this.group = new THREE.Group();
@@ -212,6 +202,9 @@ class CelestialBody {
     update(elapsedTime, delta) {}
 }
 
+/**
+ * Клас для Джерела (Сонця) з кастомним шейдером.
+ */
 class Sun extends CelestialBody {
     constructor(config) {
         super({ ...config, isSource: true });
@@ -237,12 +230,15 @@ class Sun extends CelestialBody {
     }
     update(elapsedTime, delta) {
         this.group.rotation.y += delta * 0.02;
-        if (this.corona && this.corona.material.uniforms) {
+        if (this.corona?.material.uniforms) {
             this.corona.material.uniforms.time.value = elapsedTime;
         }
     }
 }
 
+/**
+ * Клас для створення планет.
+ */
 class Planet extends CelestialBody {
     constructor(config, texture) {
         super(config);
@@ -260,6 +256,9 @@ class Planet extends CelestialBody {
     }
 }
     
+/**
+ * Точка входу: створюємо Всесвіт та активуємо курсор.
+ */
 try {
     new Universe();
     const cursorDot = document.getElementById('cursor-dot');
