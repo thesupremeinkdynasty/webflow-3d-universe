@@ -19,6 +19,7 @@ class Universe {
         this.cameraManager = new CameraManager(this.container);
         this.renderer = this.createRenderer();
         
+        this.createLighting();
         await this.createEnvironment();
         await this.createCelestialBodies();
         
@@ -41,11 +42,15 @@ class Universe {
     createComposer() {
         const composer = new EffectComposer(this.renderer);
         composer.addPass(new RenderPass(this.scene, this.cameraManager.camera));
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.9, 0.8, 0.6);
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.5, 0.8);
         composer.addPass(bloomPass);
         return composer;
     }
     
+    createLighting() {
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    }
+
     async createEnvironment() {
         const textureLoader = new THREE.TextureLoader();
         try {
@@ -55,16 +60,26 @@ class Universe {
     }
 
     async createCelestialBodies() {
-        const source = new Sun({ name: "Джерело", size: 25 });
+        const textureLoader = new THREE.TextureLoader();
+        let textures = {};
+        try {
+            textures = {
+                sun: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687ec73077ae556a394ceaba_8k_sun.jpg') },
+            };
+        } catch (e) { console.error("Не вдалося завантажити текстури:", e); }
+        
+        const source = new Sun({ name: "Джерело", size: 25, textures: textures.sun });
         this.celestialBodies.push(source);
         this.scene.add(source.group);
+        
+        // ... тут буде код створення планет у майбутньому
+        
         this.loaderManager.finish();
     }
 
     addEventListeners() {
         window.addEventListener('resize', () => this.onResize());
     }
-
     onResize() {
         this.cameraManager.onResize();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -84,25 +99,22 @@ class Universe {
 
 class CameraManager {
     constructor(container) {
-        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 4000);
-        this.camera.position.set(0, 20, 150);
+        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 6000);
+        this.camera.position.set(0, 80, 250);
         this.controls = new OrbitControls(this.camera, container);
-        this.controls.enableDamping = true;
-        this.controls.autoRotate = true;
+        this.controls.enableDamping = true; 
+        this.controls.autoRotate = true; 
         this.controls.autoRotateSpeed = 0.1;
-        this.controls.minDistance = 50;
-        this.controls.maxDistance = 500;
+        this.controls.minDistance = 50; 
+        this.controls.maxDistance = 800;
     }
     update(delta) { this.controls.update(delta); }
-    onResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
-    }
+    onResize() { this.camera.aspect = window.innerWidth / window.innerHeight; this.camera.updateProjectionMatrix(); }
 }
 
 class UIManager {
     constructor(cameraManager, planets) {
-        // UI поки що не використовується, але клас залишаємо для майбутнього
+        // Логіка UI
     }
 }
 
@@ -119,40 +131,32 @@ class CelestialBody {
 class Sun extends CelestialBody {
     constructor(config) {
         super({ ...config, isSource: true });
-        this.init();
-    }
 
-    async init() {
-        const textureLoader = new THREE.TextureLoader();
-        let sunTexture;
-        try {
-            sunTexture = await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687ec73077ae556a394ceaba_8k_sun.jpg');
-        } catch (e) {
-            console.error("Не вдалося завантажити текстуру Сонця.", e);
-        }
-
+        // --- Створення тіла Сонця ---
         const sunGeometry = new THREE.SphereGeometry(this.size, 128, 128);
         const sunMaterial = new THREE.MeshStandardMaterial({
-            map: sunTexture,
-            emissiveMap: sunTexture,
+            map: this.textures?.map,
+            emissiveMap: this.textures?.map,
             emissive: 0xffffff,
             emissiveIntensity: 1.8,
         });
         this.mesh = new THREE.Mesh(sunGeometry, sunMaterial);
         this.group.add(this.mesh);
 
+        // --- Створення Корони ---
         const coronaGeometry = new THREE.SphereGeometry(this.size, 128, 128);
         const coronaMaterial = new THREE.ShaderMaterial({
             uniforms: { time: { value: 0.0 } },
             vertexShader: `
                 uniform float time;
                 varying float noise;
+                
                 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
                 vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
                 vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
                 vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
                 float snoise(vec3 v) {
-                    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+                    const vec2 C = vec2(1.0/6.0, 1.0/3.0) ;
                     const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
                     vec3 i  = floor(v + dot(v, C.yyy) );
                     vec3 x0 = v - i + dot(i, C.xxx) ;
@@ -223,7 +227,7 @@ class Sun extends CelestialBody {
         this.group.add(this.corona);
     }
 
-    update(elapsedTime, delta){
+    update(elapsedTime, delta) {
         this.group.rotation.y += delta * 0.02;
         if (this.corona && this.corona.material.uniforms) {
             this.corona.material.uniforms.time.value = elapsedTime;
@@ -231,8 +235,29 @@ class Sun extends CelestialBody {
     }
 }
 
-class Planet extends CelestialBody { /* ... Placeholder ... */ }
-
+class Planet extends CelestialBody {
+     constructor(config) {
+        super(config);
+        this.orbit.b = this.orbit.b || this.orbit.a; this.orbit.offset = Math.random() * Math.PI * 2;
+        
+        const material = new THREE.MeshStandardMaterial({ 
+            map: this.textures?.map,
+            color: this.textures?.map ? 0xffffff : 0xcccccc,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        
+        this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
+        this.mesh.userData = { isPlanet: true, parentBody: this };
+        this.group.add(this.mesh);
+    }
+    update(elapsedTime, delta) {
+        const angle = elapsedTime * this.orbit.speed + this.orbit.offset;
+        this.group.position.set(Math.cos(angle) * this.orbit.a, 0, Math.sin(angle) * this.orbit.b);
+        this.group.rotation.y += this.orbit.axialSpeed * delta;
+    }
+}
+    
 try {
     new Universe();
     const cursorDot = document.getElementById('cursor-dot');
