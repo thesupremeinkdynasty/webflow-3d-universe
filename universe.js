@@ -1,306 +1,229 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import gsap from 'gsap';
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Візуалізація Джерела</title>
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; background-color: black; }
+        .fullscreen-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: block; }
+        #starsCanvas { z-index: 0; }
+        #webgl-canvas { z-index: 1; }
+    </style>
+</head>
+<body>
+    <canvas id="starsCanvas" class="fullscreen-canvas"></canvas>
+    <canvas id="webgl-canvas" class="fullscreen-canvas"></canvas>
 
-class Universe {
-    constructor() {
-        this.container = document.getElementById('webgl-canvas');
-        this.clock = new THREE.Clock();
-        this.celestialBodies = [];
-        this.raycaster = new THREE.Raycaster();
-        this.mouse = new THREE.Vector2(-10, -10);
-        this.hoveredPlanet = null;
-        this.init();
-    }
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.skypack.dev/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://cdn.skypack.dev/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
 
-    async init() {
-        this.loaderManager = new LoaderManager();
-        this.scene = new THREE.Scene();
-        this.cameraManager = new CameraManager(this.container);
-        this.renderer = this.createRenderer();
-        
-        this.createLighting();
-        await this.createEnvironment();
-        await this.createCelestialBodies();
-        
-        this.composer = this.createComposer();
-        this.uiManager = new UIManager(this.cameraManager, this.celestialBodies.filter(b => !b.isSource));
-        this.addEventListeners();
-        this.animate();
-    }
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
-    createRenderer() {
-        const renderer = new THREE.WebGLRenderer({ canvas: this.container, antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setClearColor(0x000000, 0);
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.2;
-        return renderer;
-    }
+        class SunVisualization {
+            constructor() {
+                this.starsCanvas = document.getElementById('starsCanvas');
+                this.starsCtx = this.starsCanvas.getContext('2d');
+                this.container = document.getElementById('webgl-canvas');
+                this.clock = new THREE.Clock();
+                this.init();
+            }
 
-    createComposer() {
-        const composer = new EffectComposer(this.renderer);
-        composer.addPass(new RenderPass(this.scene, this.cameraManager.camera));
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.4, 0.5, 0.8);
-        composer.addPass(bloomPass);
-        return composer;
-    }
-    
-    createLighting() {
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-        const pointLight = new THREE.PointLight(0xffffff, 1.5, 3000);
-        this.scene.add(pointLight);
-    }
+            async init() {
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 4000);
+                this.camera.position.set(0, 20, 150);
 
-    async createEnvironment() {
-        const textureLoader = new THREE.TextureLoader();
+                this.renderer = new THREE.WebGLRenderer({ canvas: this.container, antialias: true, alpha: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.setClearColor(0x000000, 0);
+                this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                this.renderer.toneMappingExposure = 1.2;
+
+                this.controls = new OrbitControls(this.camera, this.container);
+                this.controls.enableDamping = true;
+                this.controls.autoRotate = true;
+                this.controls.autoRotateSpeed = 0.1;
+                this.controls.minDistance = 50;
+                this.controls.maxDistance = 500;
+
+                await this.createSun();
+                
+                this.composer = new EffectComposer(this.renderer);
+                this.composer.addPass(new RenderPass(this.scene, this.camera));
+                const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.9, 0.8, 0.6);
+                this.composer.addPass(bloomPass);
+
+                window.addEventListener('resize', () => this.onResize());
+                
+                this.onResize();
+                this.animate();
+            }
+
+            createStaticStars() {
+                this.starsCanvas.width = window.innerWidth;
+                this.starsCanvas.height = window.innerHeight;
+                this.starsCtx.clearRect(0, 0, this.starsCanvas.width, this.starsCanvas.height);
+                for (let i = 0; i < 500; i++) {
+                    const x = Math.random() * this.starsCanvas.width;
+                    const y = Math.random() * this.starsCanvas.height;
+                    const radius = Math.random() * 1.2;
+                    const alpha = Math.random() * 0.5 + 0.5;
+                    this.starsCtx.beginPath();
+                    this.starsCtx.arc(x, y, radius, 0, Math.PI * 2);
+                    this.starsCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                    this.starsCtx.fill();
+                }
+            }
+
+            async createSun() {
+                this.sunGroup = new THREE.Group();
+                this.scene.add(this.sunGroup);
+                
+                const textureLoader = new THREE.TextureLoader();
+                let sunTexture;
+                try {
+                     sunTexture = await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687ec73077ae556a394ceaba_8k_sun.jpg');
+                } catch (e) {
+                    console.error("Не вдалося завантажити текстуру Сонця.", e);
+                }
+
+                const sunGeometry = new THREE.SphereGeometry(25, 128, 128);
+                const sunMaterial = new THREE.MeshStandardMaterial({
+                    map: sunTexture,
+                    emissiveMap: sunTexture,
+                    emissive: 0xffffff,
+                    emissiveIntensity: sunTexture ? 1.8 : 0,
+                    color: sunTexture ? 0xffffff : 0xffcc00
+                });
+                const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+                this.sunGroup.add(sunMesh);
+
+                const coronaGeometry = new THREE.SphereGeometry(25, 128, 128);
+                const coronaMaterial = new THREE.ShaderMaterial({
+                    uniforms: { time: { value: 0.0 } },
+                    vertexShader: `
+                        uniform float time;
+                        varying float noise;
+                        
+                        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+                        vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+                        vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+                        vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+                        float snoise(vec3 v) {
+                            const vec2 C = vec2(1.0/6.0, 1.0/3.0) ;
+                            const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+                            vec3 i  = floor(v + dot(v, C.yyy) );
+                            vec3 x0 = v - i + dot(i, C.xxx) ;
+                            vec3 g = step(x0.yzx, x0.xyz);
+                            vec3 l = 1.0 - g;
+                            vec3 i1 = min( g.xyz, l.zxy );
+                            vec3 i2 = max( g.xyz, l.zxy );
+                            vec3 x1 = x0 - i1 + C.xxx;
+                            vec3 x2 = x0 - i2 + C.yyy;
+                            vec3 x3 = x0 - D.yyy;
+                            i = mod289(i);
+                            vec4 p = permute( permute( permute( i.z + vec4(0.0, i1.z, i2.z, 1.0 )) + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+                            float n_ = 0.142857142857;
+                            vec3  ns = n_ * D.wyz - D.xzx;
+                            vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+                            vec4 x_ = floor(j * ns.z);
+                            vec4 y_ = floor(j - 7.0 * x_ );
+                            vec4 x = x_ *ns.x + ns.yyyy;
+                            vec4 y = y_ *ns.x + ns.yyyy;
+                            vec4 h = 1.0 - abs(x) - abs(y);
+                            vec4 b0 = vec4( x.xy, y.xy );
+                            vec4 b1 = vec4( x.zw, y.zw );
+                            vec4 s0 = floor(b0)*2.0 + 1.0;
+                            vec4 s1 = floor(b1)*2.0 + 1.0;
+                            vec4 sh = -step(h, vec4(0.0));
+                            vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+                            vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+                            vec3 p0 = vec3(a0.xy,h.x);
+                            vec3 p1 = vec3(a0.zw,h.y);
+                            vec3 p2 = vec3(a1.xy,h.z);
+                            vec3 p3 = vec3(a1.zw,h.w);
+                            vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+                            p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+                            vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+                            m = m * m;
+                            return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
+                        }
+                         float fbm(vec3 p) {
+                            float f = 0.0;
+                            f += 0.5000 * snoise(p); p = p * 2.02;
+                            f += 0.2500 * snoise(p); p = p * 2.03;
+                            f += 0.1250 * snoise(p); p = p * 2.01;
+                            f += 0.0625 * snoise(p);
+                            return f;
+                        }
+                        
+                        void main() {
+                            float displacement = fbm(normal * 1.5 + time * 0.2);
+                            displacement += fbm(normal * 6.0 + time * 0.6) * 0.25;
+                            noise = displacement;
+                            
+                            vec3 newPosition = position + normal * displacement * 9.0;
+                            gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+                        }
+                    `,
+                    fragmentShader: `
+                        varying float noise;
+                        void main() {
+                            vec3 color = mix(vec3(1.0, 0.2, 0.0), vec3(1.0, 0.9, 0.5), smoothstep(-0.3, 0.6, noise));
+                            float alpha = smoothstep(0.0, 0.5, noise) * (1.0 - smoothstep(0.4, 0.6, noise));
+                            gl_FragColor = vec4(color, alpha);
+                        }
+                    `,
+                    transparent: true,
+                    blending: THREE.AdditiveBlending,
+                });
+                this.corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
+                this.sunGroup.add(this.corona);
+            }
+
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.composer.setSize(window.innerWidth, window.innerHeight);
+                this.createStaticStars();
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                const delta = this.clock.getDelta();
+                const elapsedTime = this.clock.getElapsedTime();
+                
+                if (this.sunGroup) {
+                    this.sunGroup.rotation.y += delta * 0.02;
+                    if (this.corona && this.corona.material.uniforms) {
+                        this.corona.material.uniforms.time.value = elapsedTime;
+                    }
+                }
+
+                this.controls.update(delta);
+                this.composer.render();
+            }
+        }
+
         try {
-            // ВИКОРИСТОВУЄМО ТВОЄ ЗОБРАЖЕННЯ ДЛЯ ФОНУ
-            const starfieldTexture = await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687d3cc795859f0d3a3b488f_8k_stars_milky_way.jpg');
-            const bgGeo = new THREE.SphereGeometry(3000, 64, 64);
-            const bgMat = new THREE.MeshBasicMaterial({ map: starfieldTexture, side: THREE.BackSide });
-            this.scene.add(new THREE.Mesh(bgGeo, bgMat));
+            new SunVisualization();
         } catch(e) {
-            console.error("Не вдалося завантажити текстуру зоряного неба, створюємо процедурні зорі:", e);
-            this.createProceduralStarfield();
+            console.error("Критична помилка візуалізації:", e);
         }
-    }
-
-    createProceduralStarfield() {
-        const vertices = [];
-        for (let i = 0; i < 20000; i++) {
-            vertices.push(THREE.MathUtils.randFloatSpread(4000));
-        }
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        const material = new THREE.PointsMaterial({ color: 0xffffff, size: 1.5 });
-        this.scene.add(new THREE.Points(geometry, material));
-    }
-
-    async createCelestialBodies() {
-        const textureLoader = new THREE.TextureLoader();
-        let textures = {};
-        try {
-            textures = {
-                sun: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687ec73077ae556a394ceaba_8k_sun.jpg') },
-                credo: { 
-                    map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png'),
-                    clouds: await textureLoader.loadAsync('https://i.imgur.com/K1G4G7a.png'),
-                },
-                archive: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687d0eb009d11e7ccc1190bc_%D0%BF%D0%BB%D0%B0%D0%BD%D0%B5%D1%82%D0%B0%201.png') },
-            };
-        } catch (e) { console.error("Не вдалося завантажити текстури планет:", e); }
-        
-        const source = new Sun({ name: "Джерело", size: 25, textures: textures.sun });
-        this.celestialBodies.push(source);
-        this.scene.add(source.group);
-        
-        const planetsConfig = [
-            { name: "Архів", description: "Гігантська планета з кільцями.", size: 3.5, orbit: { a: 70, speed: 0.08, axialSpeed: 0.1 }, hasRings: true, textures: textures.archive },
-            { name: "Кредо", description: "Землеподібна планета з океанами та континентами.", size: 4.0, orbit: { a: 120, speed: 0.03, axialSpeed: 0.25 }, textures: textures.credo, hasMoon: true },
-        ];
-        planetsConfig.forEach(config => {
-            const planet = new Planet(config);
-            this.celestialBodies.push(planet);
-            this.scene.add(planet.group);
-        });
-        this.loaderManager.finish();
-    }
-
-    addEventListeners() {
-        window.addEventListener('resize', () => this.onResize());
-        window.addEventListener('mousemove', (e) => this.onMouseMove(e));
-        this.container.addEventListener('click', (e) => this.uiManager.handleClick(e, this.hoveredPlanet));
-    }
-    onMouseMove(event) {
-        this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        this.mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-    }
-    onResize() {
-        this.cameraManager.onResize();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.composer.setSize(window.innerWidth, window.innerHeight);
-    }
-    
-    handleInteractions() {
-        this.raycaster.setFromCamera(this.mouse, this.cameraManager.camera);
-        const allPlanetMeshes = this.celestialBodies.filter(p => p.mesh).map(p => p.mesh);
-        const intersects = this.raycaster.intersectObjects(allPlanetMeshes);
-        const intersectedPlanet = intersects[0]?.object.userData.parentBody;
-
-        document.body.style.cursor = intersectedPlanet ? 'pointer' : 'none';
-
-        if (this.hoveredPlanet !== intersectedPlanet) {
-            if (this.hoveredPlanet) {
-                gsap.to(this.hoveredPlanet.mesh.scale, { x: 1, y: 1, z: 1, duration: 0.5, ease: 'power2.out' });
-            }
-            this.hoveredPlanet = intersectedPlanet;
-            if (this.hoveredPlanet) {
-                this.uiManager.playSound('hover');
-                gsap.to(this.hoveredPlanet.mesh.scale, { x: 1.1, y: 1.1, z: 1.1, duration: 0.5, ease: 'power2.out' });
-            }
-        }
-    }
-
-    animate() {
-        requestAnimationFrame(() => this.animate());
-        const delta = this.clock.getDelta();
-        const elapsedTime = this.clock.getElapsedTime();
-        
-        if(!this.uiManager.isFocused) this.handleInteractions();
-        this.celestialBodies.forEach(body => body.update(elapsedTime, delta));
-        this.cameraManager.update(delta);
-        this.composer.render();
-    }
-}
-
-class CameraManager {
-    constructor(container) {
-        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 6000);
-        this.camera.position.set(0, 90, 280);
-        this.controls = new OrbitControls(this.camera, container);
-        this.controls.enableDamping = true; this.controls.autoRotate = true; this.controls.autoRotateSpeed = 0.07;
-        this.controls.minDistance = 40; this.controls.maxDistance = 1000;
-    }
-    focusOn(targetBody) {
-        this.controls.autoRotate = false;
-        const targetPos = new THREE.Vector3();
-        targetBody.group.getWorldPosition(targetPos);
-        const offsetDirection = new THREE.Vector3().subVectors(this.camera.position, this.controls.target).normalize();
-        const offset = offsetDirection.multiplyScalar(targetBody.size * 5);
-        gsap.to(this.camera.position, { duration: 2.5, ease: 'power2.inOut', x: targetPos.x + offset.x, y: targetPos.y + offset.y, z: targetPos.z + offset.z, onUpdate: () => this.controls.update() });
-        gsap.to(this.controls.target, { duration: 2.5, ease: 'power2.inOut', x: targetPos.x, y: targetPos.y, z: targetPos.z, onUpdate: () => this.controls.update() });
-    }
-    returnToOverview() {
-        this.controls.autoRotate = true;
-        gsap.to(this.camera.position, { duration: 2.5, ease: 'power2.inOut', x: 0, y: 90, z: 280, onUpdate: () => this.controls.update() });
-        gsap.to(this.controls.target, { duration: 2.5, ease: 'power2.inOut', x: 0, y: 0, z: 0, onUpdate: () => this.controls.update() });
-    }
-    update(delta) { this.controls.update(delta); }
-    onResize() { this.camera.aspect = window.innerWidth / window.innerHeight; this.camera.updateProjectionMatrix(); }
-}
-
-class UIManager {
-    constructor(cameraManager, planets) {
-        this.cameraManager = cameraManager; this.planets = planets; this.navContent = document.getElementById('nav-content'); this.isFocused = false;
-        this.sounds = {}; this.interactionOccurred = false;
-        try {
-            this.sounds.hover = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
-            this.sounds.click = new Audio('data:audio/wav;base64,UklGRiIAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhBgAAAAEA');
-        } catch (e) { console.error("Could not create audio context"); }
-        this.populateNav();
-    }
-    playSound(sound) {
-        if (this.sounds[sound] && this.interactionOccurred) { this.sounds[sound].currentTime = 0; this.sounds[sound].play().catch(e => {}); }
-    }
-    populateNav() {
-        const html = `<h2>Світи Одкровення</h2><ul>${this.planets.map(p => `<li data-name="${p.name}">${p.name}</li>`).join('')}</ul>`;
-        this.navContent.innerHTML = html;
-        this.navContent.querySelectorAll('li').forEach(li => li.addEventListener('click', (e) => this.onNavClick(e)));
-    }
-    onNavClick(e) {
-        e.stopPropagation(); this.playSound('click');
-        const planet = this.planets.find(p => p.name === e.target.dataset.name);
-        if (planet) { this.cameraManager.focusOn(planet); this.showFocusedView(planet); this.setActive(planet.name); this.isFocused = true; }
-    }
-    showFocusedView(planet) {
-        const html = `<div class="focused-view"><h2>${planet.name}</h2><p>${planet.description}</p><button class="return-button">Повернутися до огляду</button></div>`;
-        this.navContent.innerHTML = html;
-        this.navContent.querySelector('.return-button').addEventListener('click', (e) => { e.stopPropagation(); this.returnToOverview(); });
-    }
-    returnToOverview() {
-        this.playSound('click'); this.cameraManager.returnToOverview(); this.populateNav(); this.isFocused = false;
-    }
-    handleClick(e, hoveredPlanet) {
-        if (!this.interactionOccurred) this.interactionOccurred = true;
-        if (hoveredPlanet) { this.onNavClick({ target: { dataset: { name: hoveredPlanet.name } }, stopPropagation: () => {} }); } 
-        else if (this.isFocused && e.target.id === 'webgl-canvas') { this.returnToOverview(); }
-    }
-    setActive(name) { this.navContent.querySelectorAll('li').forEach(li => li.classList.toggle('active', li.dataset.name === name)); }
-}
-
-class LoaderManager {
-    constructor() { this.loaderElement = document.getElementById('loader'); }
-    finish() { gsap.to(this.loaderElement, { opacity: 0, duration: 1.5, delay: 0.5, onComplete: () => this.loaderElement.style.display = 'none' }); }
-    showError(message) { if(this.loaderElement) this.loaderElement.innerHTML = `<p>${message}</p>`; }
-}
-
-class CelestialBody {
-    constructor(config) { this.group = new THREE.Group(); Object.assign(this, config); }
-    update(elapsedTime, delta) {}
-}
-
-class Sun extends CelestialBody {
-    constructor(config) {
-        super({ ...config, isSource: true });
-        const material = new THREE.MeshBasicMaterial({ map: this.textures?.map });
-        this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 128, 128), material);
-        this.group.add(this.mesh);
-
-        const coronaMat = new THREE.SpriteMaterial({
-            map: new THREE.TextureLoader().load('https://i.imgur.com/yla3d1Y.png'),
-            color: 0xffeab3, transparent: true, blending: THREE.AdditiveBlending, opacity: 0.7
-        });
-        this.corona = new THREE.Sprite(coronaMat);
-        this.corona.scale.set(this.size * 3.5, this.size * 3.5, 1);
-        this.group.add(this.corona);
-    }
-    update(elapsedTime, delta){ 
-        this.group.rotation.y += delta * 0.02;
-        this.corona.material.rotation += delta * 0.01;
-        this.corona.scale.setScalar(this.size * 3.5 * (1 + Math.sin(elapsedTime * 0.5) * 0.05));
-    }
-}
-
-class Planet extends CelestialBody {
-    constructor(config) {
-        super(config);
-        this.orbit.b = this.orbit.b || this.orbit.a; this.orbit.offset = Math.random() * Math.PI * 2;
-        
-        const materialProperties = {
-            map: this.textures?.map,
-            color: this.textures?.map ? 0xffffff : 0xcccccc,
-            roughness: 0.8,
-            metalness: 0.2
-        };
-        
-        const material = new THREE.MeshStandardMaterial(materialProperties);
-        
-        this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
-        this.mesh.userData = { isPlanet: true, parentBody: this };
-        this.group.add(this.mesh);
-
-        if (config.hasRings) this.createRings();
-        if (config.hasMoon) this.createMoon();
-    }
-    createRings() {
-        const ringGeo = new THREE.RingGeometry(this.size * 1.5, this.size * 2.2, 64);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide, transparent: true, opacity: 0.4 });
-        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-        ringMesh.rotation.x = -Math.PI / 2;
-        this.group.add(ringMesh);
-    }
-    createMoon() {
-        this.moon = new THREE.Mesh(new THREE.SphereGeometry(this.size * 0.2, 32, 32), new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 1.0 }));
-        this.group.add(this.moon);
-    }
-    update(elapsedTime, delta) {
-        const angle = elapsedTime * this.orbit.speed + this.orbit.offset;
-        this.group.position.set(Math.cos(angle) * this.orbit.a, 0, Math.sin(angle) * this.orbit.b);
-        this.group.rotation.y += this.orbit.axialSpeed * delta;
-        if (this.moon) {
-            const moonAngle = elapsedTime * 0.5;
-            this.moon.position.set(Math.cos(moonAngle) * this.size * 2.5, 0, Math.sin(moonAngle) * this.size * 2.5);
-        }
-    }
-}
-    
-try {
-    new Universe();
-    const cursorDot = document.getElementById('cursor-dot');
-    window.addEventListener('mousemove', e => gsap.to(cursorDot, { duration: 0.3, x: e.clientX, y: e.clientY, ease: 'power2.out' }));
-} catch(e) { console.error("Критична помилка Всесвіту:", e); }
+    </script>
+</body>
+</html>
