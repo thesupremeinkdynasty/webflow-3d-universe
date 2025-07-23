@@ -59,7 +59,8 @@ class Universe {
     async createEnvironment() {
         const textureLoader = new THREE.TextureLoader();
         try {
-            const starfieldTexture = await textureLoader.loadAsync('https://i.imgur.com/6X2s72x.jpeg');
+            // ВИКОРИСТОВУЄМО ТВОЄ ЗОБРАЖЕННЯ ДЛЯ ФОНУ
+            const starfieldTexture = await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687d3cc795859f0d3a3b488f_8k_stars_milky_way.jpg');
             const bgGeo = new THREE.SphereGeometry(3000, 64, 64);
             const bgMat = new THREE.MeshBasicMaterial({ map: starfieldTexture, side: THREE.BackSide });
             this.scene.add(new THREE.Mesh(bgGeo, bgMat));
@@ -72,16 +73,8 @@ class Universe {
         try {
             textures = {
                 sun: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687ec73077ae556a394ceaba_8k_sun.jpg') },
-                credo: { 
-                    map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png'),
-                    clouds: await textureLoader.loadAsync('https://i.imgur.com/K1G4G7a.png'),
-                    night: await textureLoader.loadAsync('https://i.imgur.com/k26p1Wp.jpeg'),
-                },
+                credo: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687c2da226c827007b577b22_Copilot_20250720_014233.png') },
                 archive: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687d0eb009d11e7ccc1190bc_%D0%BF%D0%BB%D0%B0%D0%BD%D0%B5%D1%82%D0%B0%201.png') },
-                forge: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b95e0b0e78f91b89f0e_2.1.png') },
-                pact: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b92e0b0e78f91b89af5_9.1.png') },
-                guild: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b94b53ba90dbc022678_8.1.png') },
-                insights: { map: await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687e6b93f5194ad7643a11b9_10.1.png') },
             };
         } catch (e) { console.error("Не вдалося завантажити текстури планет:", e); }
         
@@ -90,12 +83,8 @@ class Universe {
         this.scene.add(source.group);
         
         const planetsConfig = [
-            { name: "Архів", description: "Гігантська планета з кільцями.", size: 3.5, orbit: { a: 70, speed: 0.08, axialSpeed: 0.1 }, hasRings: true, textures: textures.archive },
-            { name: "Кузня", description: "Вулканічна планета.", size: 3.0, orbit: { a: 110, speed: 0.06, axialSpeed: 0.15 }, textures: textures.forge },
-            { name: "Пакт", description: "Кришталева, ідеально огранена планета.", size: 2.8, orbit: { a: 155, speed: 0.04, axialSpeed: 0.3 }, textures: textures.pact },
-            { name: "Кредо", description: "Землеподібна планета з океанами та континентами.", size: 4.0, orbit: { a: 200, speed: 0.03, axialSpeed: 0.25 }, textures: textures.credo, hasMoon: true },
-            { name: "Гільдія", description: "Світ співпраці та об'єднання.", size: 2.5, orbit: { a: 240, speed: 0.02, axialSpeed: 0.18 }, textures: textures.guild },
-            { name: "Інсайти", description: "Газовий гігант з глибокими відкриттями.", size: 5.0, orbit: { a: 280, speed: 0.015, axialSpeed: 0.1 }, textures: textures.insights },
+            { name: "Архів", description: "Гігантська планета з кільцями.", size: 3.5, orbit: { a: 70, speed: 0.08, axialSpeed: 0.1 }, textures: textures.archive },
+            { name: "Кредо", description: "Землеподібна планета.", size: 4.0, orbit: { a: 120, speed: 0.03, axialSpeed: 0.25 }, textures: textures.credo }
         ];
         planetsConfig.forEach(config => {
             const planet = new Planet(config);
@@ -155,10 +144,10 @@ class Universe {
 class CameraManager {
     constructor(container) {
         this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 6000);
-        this.camera.position.set(0, 90, 280);
+        this.camera.position.set(0, 80, 250);
         this.controls = new OrbitControls(this.camera, container);
         this.controls.enableDamping = true; this.controls.autoRotate = true; this.controls.autoRotateSpeed = 0.07;
-        this.controls.minDistance = 40; this.controls.maxDistance = 1000;
+        this.controls.minDistance = 40; this.controls.maxDistance = 800;
     }
     focusOn(targetBody) {
         this.controls.autoRotate = false;
@@ -171,7 +160,7 @@ class CameraManager {
     }
     returnToOverview() {
         this.controls.autoRotate = true;
-        gsap.to(this.camera.position, { duration: 2.5, ease: 'power2.inOut', x: 0, y: 90, z: 280, onUpdate: () => this.controls.update() });
+        gsap.to(this.camera.position, { duration: 2.5, ease: 'power2.inOut', x: 0, y: 80, z: 250, onUpdate: () => this.controls.update() });
         gsap.to(this.controls.target, { duration: 2.5, ease: 'power2.inOut', x: 0, y: 0, z: 0, onUpdate: () => this.controls.update() });
     }
     update(delta) { this.controls.update(delta); }
@@ -234,19 +223,9 @@ class Sun extends CelestialBody {
         const material = new THREE.MeshBasicMaterial({ map: this.textures?.map });
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 128, 128), material);
         this.group.add(this.mesh);
-
-        const coronaMat = new THREE.SpriteMaterial({
-            map: new THREE.TextureLoader().load('https://i.imgur.com/yla3d1Y.png'),
-            color: 0xffeab3, transparent: true, blending: THREE.AdditiveBlending, opacity: 0.7
-        });
-        this.corona = new THREE.Sprite(coronaMat);
-        this.corona.scale.set(this.size * 3.5, this.size * 3.5, 1);
-        this.group.add(this.corona);
     }
     update(elapsedTime, delta){ 
         this.group.rotation.y += delta * 0.02;
-        this.corona.material.rotation += delta * 0.01;
-        this.corona.scale.setScalar(this.size * 3.5 * (1 + Math.sin(elapsedTime * 0.5) * 0.05));
     }
 }
 
@@ -254,61 +233,20 @@ class Planet extends CelestialBody {
     constructor(config) {
         super(config);
         this.orbit.b = this.orbit.b || this.orbit.a; this.orbit.offset = Math.random() * Math.PI * 2;
-        
-        const materialProperties = {
-            map: this.textures?.map,
-            color: this.textures?.map ? 0xffffff : (this.color || 0xcccccc),
-            roughness: 0.8,
-            metalness: 0.2
-        };
-        if(this.textures?.night) {
-            materialProperties.emissiveMap = this.textures.night;
-            materialProperties.emissive = 0xffffff;
-            materialProperties.emissiveIntensity = 1.5;
-        }
-        
-        let material;
-        if (this.name === "Пакт") {
-            material = new THREE.MeshPhysicalMaterial({ ...materialProperties, transmission: 1.0, ior: 1.5, thickness: 1.5, transparent: true });
-        } else if (this.name === "Кузня") {
-            material = new THREE.MeshStandardMaterial({ ...materialProperties, emissiveMap: this.textures?.map, emissive: 0xff6600, emissiveIntensity: 1.2 });
-        }
-        else {
-             material = new THREE.MeshStandardMaterial(materialProperties);
-        }
-        
+        const material = new THREE.MeshStandardMaterial({ 
+            map: this.textures?.map, 
+            color: this.textures?.map ? 0xffffff : (this.color || 0xcccccc), 
+            roughness: 0.8, 
+            metalness: 0.2 
+        });
         this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.size, 64, 64), material);
         this.mesh.userData = { isPlanet: true, parentBody: this };
         this.group.add(this.mesh);
-
-        if (this.name === "Кредо" && this.textures?.clouds) {
-            const cloudMat = new THREE.MeshLambertMaterial({ map: this.textures.clouds, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
-            this.cloudMesh = new THREE.Mesh(new THREE.SphereGeometry(this.size * 1.03, 64, 64), cloudMat);
-            this.group.add(this.cloudMesh);
-        }
-        if (config.hasRings) this.createRings();
-        if (config.hasMoon) this.createMoon();
-    }
-    createRings() {
-        const ringGeo = new THREE.RingGeometry(this.size * 1.5, this.size * 2.2, 64);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide, transparent: true, opacity: 0.4 });
-        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-        ringMesh.rotation.x = -Math.PI / 2;
-        this.group.add(ringMesh);
-    }
-    createMoon() {
-        this.moon = new THREE.Mesh(new THREE.SphereGeometry(this.size * 0.2, 32, 32), new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 1.0 }));
-        this.group.add(this.moon);
     }
     update(elapsedTime, delta) {
         const angle = elapsedTime * this.orbit.speed + this.orbit.offset;
         this.group.position.set(Math.cos(angle) * this.orbit.a, 0, Math.sin(angle) * this.orbit.b);
         this.group.rotation.y += this.orbit.axialSpeed * delta;
-        if (this.cloudMesh) this.cloudMesh.rotation.y += delta * 0.02;
-        if (this.moon) {
-            const moonAngle = elapsedTime * 0.5;
-            this.moon.position.set(Math.cos(moonAngle) * this.size * 2.5, 0, Math.sin(moonAngle) * this.size * 2.5);
-        }
     }
 }
     
