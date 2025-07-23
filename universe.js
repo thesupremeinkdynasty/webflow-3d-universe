@@ -1,6 +1,6 @@
 // =================================================================
 // Архітектор: The Supreme Ink Dynasty & Gemini
-// Версія: 1.0 (Фаза I - Архітектура Всесвіту - Завершено)
+// Версія: 1.1 (Фаза I - Архітектура Всесвіту - Завершено)
 // Опис: Фіналізований код для створення 3D-сцени,
 // що включає Джерело, планети з надійними текстурами
 // та процедурний зоряний фон.
@@ -19,7 +19,7 @@ const PLANET_DATA = [
         name: "Кредо",
         size: 10,
         distance: 80,
-        textureUrl: 'https://cdn.jsdelivr.net/gh/thesupremeinkdynasty/webflow-3d-universe@main/assets/textures/credo_texture.jpg',
+        textureUrl: 'https://cdn.jsdelivr.net/gh/thesupremeinkdynasty/webflow-3d-universe@main/assets/texture/credo_texture.jpg',
         description: "Землеподібний світ, що символізує людський аспект проєкту та нашу команду.",
         url: '/about-us'
     },
@@ -27,7 +27,7 @@ const PLANET_DATA = [
         name: "Архів",
         size: 14,
         distance: 150,
-        textureUrl: 'https://cdn.jsdelivr.net/gh/thesupremeinkdynasty/webflow-3d-universe@main/assets/textures/archive_texture.jpg',
+        textureUrl: 'https://cdn.jsdelivr.net/gh/thesupremeinkdynasty/webflow-3d-universe@main/assets/texture/archive_texture.jpg',
         description: "Гігантська планета-бібліотека, оточена кільцями із сяючих гліфів.",
         url: '/library'
     },
@@ -35,7 +35,7 @@ const PLANET_DATA = [
         name: "Кузня",
         size: 9,
         distance: 230,
-        textureUrl: 'https://cdn.jsdelivr.net/gh/thesupremeinkdynasty/webflow-3d-universe@main/assets/textures/forge_texture.jpg',
+        textureUrl: 'https://cdn.jsdelivr.net/gh/thesupremeinkdynasty/webflow-3d-universe@main/assets/texture/forge_texture.jpg',
         description: "Вулканічна планета, де народжуються ідеї в ріках розплавленого металу.",
         url: '/ai-generator'
     },
@@ -43,7 +43,7 @@ const PLANET_DATA = [
         name: "Пакт",
         size: 8,
         distance: 300,
-        textureUrl: 'https://cdn.jsdelivr.net/gh/thesupremeinkdynasty/webflow-3d-universe@main/assets/textures/pact_texture.jpg',
+        textureUrl: 'https://cdn.jsdelivr.net/gh/thesupremeinkdynasty/webflow-3d-universe@main/assets/texture/pact_texture.jpg',
         description: "Ідеально огранений кристал, що символізує прозорість та цінність наших умов.",
         url: '/pricing'
     }
@@ -120,7 +120,7 @@ class Universe {
         const textureLoader = new THREE.TextureLoader(this.loaderManager.manager);
         
         try {
-            const sunTexture = await textureLoader.loadAsync('https://cdn.jsdelivr.net/gh/thesupremeinkdynasty/webflow-3d-universe@main/assets/textures/8k_sun.jpg');
+            const sunTexture = await textureLoader.loadAsync('https://cdn.jsdelivr.net/gh/thesupremeinkdynasty/webflow-3d-universe@main/assets/texture/8k_sun.jpg');
             const source = new Sun({ name: "Джерело", size: 25, textures: { map: sunTexture } });
             this.celestialBodies.push(source);
             this.scene.add(source.group);
