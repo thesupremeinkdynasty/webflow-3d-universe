@@ -7,12 +7,10 @@
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; background-color: black; }
         .fullscreen-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: block; }
-        #starsCanvas { z-index: 0; }
         #webgl-canvas { z-index: 1; }
     </style>
 </head>
 <body>
-    <canvas id="starsCanvas" class="fullscreen-canvas"></canvas>
     <canvas id="webgl-canvas" class="fullscreen-canvas"></canvas>
 
     <script type="importmap">
@@ -33,8 +31,6 @@
 
         class SunVisualization {
             constructor() {
-                this.starsCanvas = document.getElementById('starsCanvas');
-                this.starsCtx = this.starsCanvas.getContext('2d');
                 this.container = document.getElementById('webgl-canvas');
                 this.clock = new THREE.Clock();
                 this.init();
@@ -59,6 +55,7 @@
                 this.controls.minDistance = 50;
                 this.controls.maxDistance = 500;
 
+                await this.createBackground();
                 await this.createSun();
                 
                 this.composer = new EffectComposer(this.renderer);
@@ -68,23 +65,16 @@
 
                 window.addEventListener('resize', () => this.onResize());
                 
-                this.onResize();
                 this.animate();
             }
 
-            createStaticStars() {
-                this.starsCanvas.width = window.innerWidth;
-                this.starsCanvas.height = window.innerHeight;
-                this.starsCtx.clearRect(0, 0, this.starsCanvas.width, this.starsCanvas.height);
-                for (let i = 0; i < 500; i++) {
-                    const x = Math.random() * this.starsCanvas.width;
-                    const y = Math.random() * this.starsCanvas.height;
-                    const radius = Math.random() * 1.2;
-                    const alpha = Math.random() * 0.5 + 0.5;
-                    this.starsCtx.beginPath();
-                    this.starsCtx.arc(x, y, radius, 0, Math.PI * 2);
-                    this.starsCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-                    this.starsCtx.fill();
+            async createBackground() {
+                const textureLoader = new THREE.TextureLoader();
+                try {
+                    const bgTexture = await textureLoader.loadAsync('https://cdn.prod.website-files.com/687800cd3b57aa1d537bf6f3/687d3cc795859f0d3a3b488f_8k_stars_milky_way.jpg');
+                    this.scene.background = bgTexture;
+                } catch (e) {
+                    console.error("Не вдалося завантажити фонове зображення.", e);
                 }
             }
 
@@ -199,7 +189,6 @@
                 this.camera.updateProjectionMatrix();
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.composer.setSize(window.innerWidth, window.innerHeight);
-                this.createStaticStars();
             }
 
             animate() {
