@@ -1,7 +1,7 @@
-// Фінальна версія v6.0 - "Класичне підключення"
+// Фінальна версія v6.1 - "Класичне підключення" з виправленим синтаксисом.
 // Цей код не використовує import/export. Він покладається на глобальні об'єкти THREE та gsap.
 
-function "Всесвіт"() {
+function createUniverse() { // ВИПРАВЛЕНО: Назва функції тепер без лапок
     // Перевіряємо, чи завантажились бібліотеки
     if (typeof THREE === 'undefined' || typeof gsap === 'undefined') {
         console.error("Архітектор: Ключові бібліотеки (THREE або gsap) не завантажились. Перевірте скрипти підключення.");
@@ -97,8 +97,8 @@ function "Всесвіт"() {
 }
 
 // Запускаємо все після повного завантаження сторінки
-if (document.readyState === 'complete') {
-    "Всесвіт"();
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    createUniverse();
 } else {
-    window.addEventListener('load', "Всесвіт");
+    window.addEventListener('load', createUniverse);
 }
