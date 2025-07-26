@@ -1,6 +1,6 @@
 {
   "cosmic": {
-    "buildCommand": "echo 'Static assets, no build step.'",
+    "framework": "static",
     "publishDir": "."
   }
 }
