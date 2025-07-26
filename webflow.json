@@ -1,4 +1,6 @@
 {
-  "buildCommand": "echo 'Static assets only, no build required.'",
-  "publishDir": "."
+  "cosmic": {
+    "buildCommand": "echo 'Static assets, no build step.'",
+    "publishDir": "."
+  }
 }
