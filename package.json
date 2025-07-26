@@ -1,6 +1,8 @@
 {
   "name": "universe-core",
   "version": "1.0.0",
-  "private": true
+  "private": true,
+  "scripts": {
+    "build": "mkdir public && cp universe.js public/universe.js"
+  }
 }
-
