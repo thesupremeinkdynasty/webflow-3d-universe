@@ -1,4 +1,4 @@
-// Архітектурне ядро Всесвіту. Версія 3.4. Протокол "Діагностика Навігації".
+// Архітектурне ядро Всесвіту. Версія 3.5. Протокол "Динамічна Прив'язка".
 import * as THREE from 'three';
 import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -28,25 +28,55 @@ function initializeUniverse() {
     ];
 
     class UIManager {
-        constructor(planets, cameraManager) { this.sidebar = document.getElementById('sidebar'); this.infoPanel = document.getElementById('planet-info'); this.planetName = document.getElementById('planet-name'); this.planetDesc = document.getElementById('planet-desc'); this.planetLink = document.getElementById('planet-link'); this.planets = planets; this.cameraManager = cameraManager; if (this.sidebar) this.populateSidebar(); }
-        populateSidebar() { let listItems = ''; this.planets.forEach(planet => { listItems += `<li data-planet-name="${planet.name}">${planet.name}</li>`; }); this.sidebar.innerHTML = `<div class="sidebar-header"><h1>Книга Мандрівника</h1></div><div class="divider"></div><div id="nav-content"><ul>${listItems}</ul></div>`; this.sidebar.querySelectorAll('li').forEach(li => { li.addEventListener('click', (e) => { const planetName = e.target.getAttribute('data-planet-name'); const targetPlanet = this.planets.find(p => p.name === planetName); if (targetPlanet) { this.cameraManager.focusOn(targetPlanet); } }); }); }
+        constructor(planets, cameraManager) { 
+            this.sidebar = document.getElementById('sidebar'); 
+            this.infoPanel = document.getElementById('planet-info'); 
+            this.planetName = document.getElementById('planet-name'); 
+            this.planetDesc = document.getElementById('planet-desc'); 
+            this.planets = planets; 
+            this.cameraManager = cameraManager; 
+            if (this.sidebar) this.populateSidebar(); 
+        }
+        populateSidebar() { 
+            let listItems = ''; 
+            this.planets.forEach(planet => { listItems += `<li data-planet-name="${planet.name}">${planet.name}</li>`; }); 
+            this.sidebar.innerHTML = `<div class="sidebar-header"><h1>Книга Мандрівника</h1></div><div class="divider"></div><div id="nav-content"><ul>${listItems}</ul></div>`; 
+            this.sidebar.querySelectorAll('li').forEach(li => { 
+                li.addEventListener('click', (e) => { 
+                    const planetName = e.target.getAttribute('data-planet-name'); 
+                    const targetPlanet = this.planets.find(p => p.name === planetName); 
+                    if (targetPlanet) { this.cameraManager.focusOn(targetPlanet); } 
+                }); 
+            }); 
+        }
         
         // --- ЗМІНА ТУТ ---
         showPlanetInfo(planetData) {
+            if (!this.infoPanel || !this.planetName || !this.planetDesc) {
+                console.error("[ARCHITECT] Елементи панелі інформації не знайдено!");
+                return;
+            }
+            const planetLinkButton = document.getElementById('planet-link');
+            if (!planetLinkButton) {
+                console.error("[ARCHITECT] Кнопка #planet-link не знайдена!");
+                return;
+            }
+
             this.planetName.textContent = planetData.name;
             this.planetDesc.textContent = planetData.description;
-            this.planetLink.onclick = () => {
-                console.log(`[ARCHITECT] Натиснуто кнопку 'УВІЙТИ У СВІТ'. Цільова URL: ${planetData.url}`);
+            
+            planetLinkButton.onclick = () => {
                 if (planetData.url && planetData.url !== "#") {
                     window.location.href = planetData.url;
-                } else {
-                    console.warn("[ARCHITECT] URL не вказано. Навігація скасована.");
                 }
             };
             this.infoPanel.classList.add('visible');
         }
-        hidePlanetInfo() { this.infoPanel.classList.remove('visible'); }
+        hidePlanetInfo() { 
+            if (this.infoPanel) this.infoPanel.classList.remove('visible'); 
+        }
     }
+
     class CameraManager {
         constructor(container, camera, renderer) { this.uiManager = null; this.focusedObject = null; this.isAnimating = false; this.camera = camera; this.container = container; this.initialPosition = this.camera.position.clone(); this.initialFov = this.camera.fov; this.controls = new TrackballControls(this.camera, renderer.domElement); this.configureControls(); this.container.addEventListener('mousedown', () => this.onManualControlStart()); }
         configureControls() { this.controls.rotateSpeed = 2.0; this.controls.zoomSpeed = 1.2; this.controls.panSpeed = 0.8; this.controls.noZoom = false; this.controls.noPan = false; this.controls.staticMoving = true; this.controls.dynamicDampingFactor = 0.2; }
